@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inverted Pendulum — Control Lab</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#f4f2ed;--bg2:#eceae4;--bg3:#e2dfd8;
+  --border:#ccc9c0;--text:#1a1814;--text2:#6b6860;--text3:#9e9b93;
+  --red:#c0392b;--blue:#1a4f7a;--green:#2a6b3c;--orange:#b85c00;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;overflow:hidden;}
+#app{width:100vw;height:100vh;display:grid;grid-template-columns:196px 1fr 136px;grid-template-rows:36px 1fr 128px;grid-template-areas:"hdr hdr hdr""left mid right""left plots right";}
+#hdr{grid-area:hdr;background:var(--text);color:var(--bg);display:flex;align-items:center;justify-content:space-between;padding:0 14px;}
+.htitle{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+#dot{width:6px;height:6px;border-radius:50%;background:#4a4;flex-shrink:0;}
+.hmeta{font-family:var(--mono);font-size:10px;color:#888;display:flex;gap:16px;}
+.hmeta span{color:#ccc;}
+#left{grid-area:left;background:var(--bg2);border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+.ps{padding:9px 11px;border-bottom:1px solid var(--border);}
+.pl{font-family:var(--mono);font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;}
+#cBtns{display:flex;flex-direction:column;gap:1px;}
+.cbtn{padding:5px 8px;background:transparent;border:1px solid transparent;border-radius:3px;cursor:pointer;font-family:var(--mono);font-size:10px;color:var(--text2);text-align:left;transition:all .1s;display:flex;align-items:center;gap:7px;width:100%;}
+.cbtn:hover{background:var(--bg3);color:var(--text);}
+.cbtn.active{background:var(--text);color:var(--bg);border-color:var(--text);}
+.cdot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+.gr{margin-bottom:5px;}
+.gm{display:flex;justify-content:space-between;margin-bottom:2px;}
+.gn{font-family:var(--mono);font-size:9px;color:var(--text2);}
+.gv{font-family:var(--mono);font-size:9px;color:var(--text);font-weight:500;}
+input[type=range]{width:100%;height:3px;-webkit-appearance:none;background:var(--border);border-radius:2px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--text);cursor:pointer;}
+.ck{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:10px;color:var(--text2);cursor:pointer;margin-bottom:4px;}
+input[type=checkbox]{accent-color:var(--text);cursor:pointer;}
+.btn{width:100%;padding:5px 8px;background:transparent;border:1px solid var(--border);border-radius:3px;font-family:var(--mono);font-size:10px;color:var(--text2);cursor:pointer;transition:all .12s;text-align:center;margin-bottom:3px;display:block;}
+.btn:hover{background:var(--text);color:var(--bg);border-color:var(--text);}
+.btn.danger{border-color:var(--red);color:var(--red);}
+.btn.danger:hover{background:var(--red);color:#fff;}
+.btn.ok{border-color:var(--green);color:var(--green);}
+.btn.ok:hover{background:var(--green);color:#fff;}
+#cInfo{font-family:var(--sans);font-size:10px;line-height:1.5;color:var(--text2);}
+#mid{grid-area:mid;position:relative;overflow:hidden;}
+#c3d{width:100%;height:100%;display:block;cursor:grab;}
+#c3d:active{cursor:grabbing;}
+#failOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(192,57,43,.07);z-index:10;}
+#failBox{background:var(--bg);border:1px solid #d0a0a0;border-radius:4px;padding:16px 18px;width:310px;max-height:88%;overflow-y:auto;}
+#failBox h3{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.06em;text-transform:uppercase;margin-bottom:8px;}
+#failBox p{font-size:11px;color:var(--text2);line-height:1.55;margin-bottom:8px;}
+.fblock{font-family:var(--mono);font-size:10px;background:var(--bg2);padding:8px 10px;border-radius:3px;margin-bottom:8px;line-height:1.8;}
+.fl{color:var(--text3);}
+.fv{color:var(--text);font-weight:500;}
+.fg{color:var(--green);font-weight:500;}
+#clickHint{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);font-family:var(--mono);font-size:9px;color:var(--text3);pointer-events:none;letter-spacing:.05em;text-transform:uppercase;}
+#plots{grid-area:plots;background:var(--bg2);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(4,1fr);}
+.pw{border-right:1px solid var(--border);overflow:hidden;}
+.pw:last-child{border-right:none;}
+.pw canvas{width:100%;height:100%;display:block;}
+#right{grid-area:right;background:var(--bg2);border-left:1px solid var(--border);overflow-y:auto;grid-row:2/4;}
+#statusBig{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.05em;padding:7px 11px;text-align:center;border-bottom:1px solid var(--border);}
+.sr{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;}
+.sk{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.sv{font-family:var(--mono);font-size:10px;color:var(--text);font-weight:500;}
+#phasewrap{padding:7px 11px;border-top:1px solid var(--border);}
+#mathModal{display:none;position:fixed;inset:0;background:rgba(26,24,20,.5);z-index:100;align-items:center;justify-content:center;}
+#mathModal.open{display:flex;}
+#mathBox{background:var(--bg);border:1px solid var(--border);border-radius:5px;width:min(720px,96vw);max-height:90vh;display:flex;flex-direction:column;}
+#mathBox header{background:var(--text);color:var(--bg);padding:11px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+#mathBox header span{font-family:var(--mono);font-size:11px;letter-spacing:.07em;text-transform:uppercase;}
+#mathClose{background:transparent;border:1px solid #555;color:#aaa;font-family:var(--mono);font-size:10px;padding:3px 10px;border-radius:3px;cursor:pointer;}
+#mathClose:hover{background:#333;}
+#mathTabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;overflow-x:auto;}
+.mtab{font-family:var(--mono);font-size:10px;padding:7px 11px;border:none;border-right:1px solid var(--border);cursor:pointer;background:var(--bg2);color:var(--text2);white-space:nowrap;flex-shrink:0;}
+.mtab:hover{background:var(--bg3);}
+.mtab.active{background:var(--bg);color:var(--text);font-weight:500;}
+#mathBody{overflow-y:auto;padding:18px 22px;flex:1;}
+#mathBody h2{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:16px 0 6px;}
+#mathBody h2:first-child{margin-top:0;}
+#mathBody p{color:var(--text2);font-size:12px;line-height:1.65;margin-bottom:8px;}
+#mathBody .eq{font-family:var(--mono);font-size:11px;background:var(--bg2);border-left:2px solid var(--border);padding:8px 12px;margin:5px 0 10px;color:var(--text);line-height:2.0;white-space:pre-wrap;}
+#mathBody .note{font-family:var(--mono);font-size:9px;color:var(--text3);line-height:1.5;}
+#mathBody table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0 12px;}
+#mathBody td,#mathBody th{padding:5px 8px;border:1px solid var(--border);font-family:var(--mono);}
+#mathBody th{background:var(--bg2);color:var(--text3);font-size:9px;letter-spacing:.05em;text-transform:uppercase;}
+#mathBody .ok{color:var(--green);}
+#mathBody .bad{color:var(--red);}
+.irow{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-family:var(--mono);font-size:10px;color:var(--text2);}
+.irow label{width:130px;flex-shrink:0;}
+.irow input[type=number]{width:72px;padding:3px 5px;border:1px solid var(--border);background:var(--bg);font-family:var(--mono);font-size:10px;color:var(--text);border-radius:2px;}
+.irow span{color:var(--text3);}
+#ic_result{font-family:var(--mono);font-size:10px;background:var(--bg2);padding:10px 12px;border-radius:3px;line-height:1.9;display:none;margin-top:8px;}
+.rg{color:var(--green);font-weight:500;}
+.ro{color:var(--orange);}
+.calcbtn{font-family:var(--mono);font-size:10px;padding:5px 16px;background:var(--text);color:var(--bg);border:none;border-radius:3px;cursor:pointer;margin-top:6px;}
+.calcbtn:hover{opacity:.85;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+@media(max-width:680px){
+  #app{grid-template-columns:160px 1fr;grid-template-rows:36px 1fr 110px;grid-template-areas:"hdr hdr""left mid""left plots";}
+  #right{display:none;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+<header id="hdr">
+  <div class="htitle"><div id="dot"></div>Inverted Pendulum — Control Lab</div>
+  <div class="hmeta">
+    <span id="hT">t = 0.00 s</span>
+    <span id="hA">θ = 0.0°</span>
+    <span id="hF">-- fps</span>
+    <span style="color:#555;">drag · scroll · click bob</span>
+  </div>
+</header>
+
+<aside id="left">
+  <div class="ps"><div class="pl">Controller</div><div id="cBtns"></div></div>
+  <div class="ps"><div class="pl">Gains</div><div id="gPanel"></div></div>
+  <div class="ps">
+    <div class="pl">Disturbance</div>
+    <label class="ck"><input type="checkbox" id="dChk"> Continuous wind</label>
+    <div class="gr">
+      <div class="gm"><span class="gn">strength</span><span class="gv" id="dStrV">3.0 N</span></div>
+      <input type="range" id="dStr" min="0" max="15" step="0.5" value="3">
+    </div>
+    <button class="btn danger" id="kick">⚡ Cart impulse</button>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px;">Click the red bob in 3D to push it</div>
+  </div>
+  <div class="ps">
+    <div class="pl">Cart setpoint</div>
+    <div class="gr">
+      <div class="gm"><span class="gn">x target</span><span class="gv" id="spV">0.00 m</span></div>
+      <input type="range" id="spSlider" min="-1.5" max="1.5" step="0.05" value="0">
+    </div>
+  </div>
+  <div class="ps">
+    <div class="pl">Pendulum mass</div>
+    <div class="gr">
+      <div class="gm"><span class="gn">ball mass</span><span class="gv" id="mpV">0.127 kg</span></div>
+      <input type="range" id="mpSlider" min="0.02" max="0.60" step="0.005" value="0.127">
+    </div>
+    <div style="font-family:var(--mono);font-size:9px;color:var(--text3);">heavier → slower natural freq.</div>
+  </div>
+  <div class="ps">
+    <button class="btn" onclick="resetSim()">↺ Reset</button>
+    <button class="btn" id="mathBtn">📐 Stability math</button>
+  </div>
+  <div class="ps" style="border-bottom:none;flex:1;">
+    <div class="pl">About</div>
+    <div id="cInfo"></div>
+  </div>
+</aside>
+
+<main id="mid">
+  <canvas id="c3d"></canvas>
+  <div id="failOverlay">
+    <div id="failBox">
+      <h3>⚠ Pendulum fell</h3>
+      <p id="failReason"></p>
+      <div class="fblock" id="failGains"></div>
+      <p style="font-size:10px;color:var(--text3);margin-bottom:5px;">
+        Suggested minimum stable gains for mp = <span id="failMp">—</span> kg:
+      </p>
+      <div class="fblock" id="suggestGains"></div>
+      <button class="btn ok" onclick="applyRecommended()">✓ Apply gains &amp; restart</button>
+      <button class="btn" onclick="resetSim()" style="margin-top:3px;">↺ Restart with current gains</button>
+    </div>
+  </div>
+  <div id="clickHint">drag to orbit · scroll to zoom · click bob to push</div>
+</main>
+
+<section id="plots">
+  <div class="pw"><canvas id="pA"></canvas></div>
+  <div class="pw"><canvas id="pO"></canvas></div>
+  <div class="pw"><canvas id="pX"></canvas></div>
+  <div class="pw"><canvas id="pF"></canvas></div>
+</section>
+
+<aside id="right">
+  <div id="statusBig">—</div>
+  <div class="ps"><div class="pl">State vector</div><div id="sPanel"></div></div>
+  <div class="ps"><div class="pl">Performance</div><div id="perfPanel"></div></div>
+  <div id="phasewrap">
+    <div class="pl" style="margin-bottom:4px;">Phase plane θ–ω</div>
+    <canvas id="pPh" height="88" style="width:100%;display:block;"></canvas>
+  </div>
+</aside>
+</div>
+
+<!-- MATH MODAL -->
+<div id="mathModal">
+  <div id="mathBox">
+    <header>
+      <span>Stability Mathematics</span>
+      <button id="mathClose" onclick="closeMath()">✕ close</button>
+    </header>
+    <div id="mathTabs"></div>
+    <div id="mathBody"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─────────────────────────────────────────────
+// PHYSICS  (Lagrangian RK4, Quanser scale)
+// ─────────────────────────────────────────────
+var GG = 9.81, Mc = 0.57, Lp = 0.3302, bp = 0.0024, bc = 4.3, RAIL = 1.8;
+var Mp = 0.127;
+var Mt, Ip;
+function rephy() { Mt = Mc + Mp; Ip = Mp * Lp * Lp * 1.333; }
+rephy();
+
+function phyDen(th) {
+  var c = Math.cos(th);
+  return Mt * Ip + Mc * Mp * Lp * Lp - Mp * Mp * Lp * Lp * c * c;
+}
+function phyDeriv(s, F) {
+  var th = s.th, om = s.om, x = s.x, v = s.v;
+  var sth = Math.sin(th), cth = Math.cos(th), D = phyDen(th);
+  var dom = (Mt * Mp * Lp * GG * sth - Mp * Lp * cth * (F - bc * v + Mp * Lp * om * om * sth) - bp * Mt * om) / D;
+  var dv  = (Ip * Mp * Lp * om * om * sth - Mp * Mp * Lp * Lp * GG * sth * cth + (Ip + Mp * Lp * Lp) * (F - bc * v) - bp * Mp * Lp * cth * om) / D;
+  return { th: om, om: dom, x: v, v: dv };
+}
+function rk4(s, F, dt) {
+  var k1 = phyDeriv(s, F);
+  var s2 = { th: s.th + k1.th * dt / 2, om: s.om + k1.om * dt / 2, x: s.x + k1.x * dt / 2, v: s.v + k1.v * dt / 2 };
+  var k2 = phyDeriv(s2, F);
+  var s3 = { th: s.th + k2.th * dt / 2, om: s.om + k2.om * dt / 2, x: s.x + k2.x * dt / 2, v: s.v + k2.v * dt / 2 };
+  var k3 = phyDeriv(s3, F);
+  var s4 = { th: s.th + k3.th * dt, om: s.om + k3.om * dt, x: s.x + k3.x * dt, v: s.v + k3.v * dt };
+  var k4 = phyDeriv(s4, F);
+  return {
+    th: s.th + dt / 6 * (k1.th + 2 * k2.th + 2 * k3.th + k4.th),
+    om: s.om + dt / 6 * (k1.om + 2 * k2.om + 2 * k3.om + k4.om),
+    x:  clamp(s.x + dt / 6 * (k1.x + 2 * k2.x + 2 * k3.x + k4.x), -RAIL, RAIL),
+    v:  s.v + dt / 6 * (k1.v + 2 * k2.v + 2 * k3.v + k4.v)
+  };
+}
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+function recGains() {
+  var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
+  return {
+    Kp: Math.max(30, Math.ceil(Mt * Lp * wn * wn * 2.2)),
+    Kd: Math.max(8,  Math.ceil(Mt * Lp * wn * 1.4)),
+    Ki: 1,
+    Kx: Math.max(3,  Math.ceil(wn * 0.8)),
+    Kv: Math.max(5,  Math.ceil(wn * 1.2))
+  };
+}
+
+// ─────────────────────────────────────────────
+// CONTROLLERS
+// ─────────────────────────────────────────────
+var K0 = [60, 16, 5, 8];
+var CTRLS = {
+  PID: {
+    label: 'PID', hex: '#2a6b3c',
+    info: 'Proportional-Integral-Derivative. Kp corrects angle; Kd damps angular velocity (critical for stability); Ki removes steady-state offset from friction.',
+    params: [{ id: 'Kp', l: 'Kp (angle)', min: 20, max: 140, s: 1, v: 60 }, { id: 'Kd', l: 'Kd (rate)', min: 5, max: 50, s: 0.5, v: 16 }, { id: 'Ki', l: 'Ki (integ)', min: 0, max: 8, s: 0.1, v: 2 }, { id: 'Kx', l: 'Kx (cart)', min: 0, max: 15, s: 0.5, v: 5 }],
+    make: function(p, sp) { var ie = 0; return function(s, dt) { ie = clamp(ie + s.th * dt, -1, 1); return clamp(p.Kp * s.th + p.Kd * s.om + p.Ki * ie + p.Kx * (s.x - sp) + K0[3] * s.v, -20, 20); }; }
+  },
+  LQR: {
+    label: 'LQR', hex: '#1a4f7a',
+    info: 'Linear-Quadratic Regulator via Riccati equation. Each slider is literally a K-matrix entry. Q penalises state error, R penalises control effort.',
+    params: [{ id: 'k1', l: 'K1 (theta)', min: 20, max: 150, s: 1, v: 60 }, { id: 'k2', l: 'K2 (omega)', min: 5, max: 50, s: 0.5, v: 16 }, { id: 'k3', l: 'K3 (x)', min: 0, max: 15, s: 0.5, v: 5 }, { id: 'k4', l: 'K4 (xdot)', min: 2, max: 25, s: 0.5, v: 8 }],
+    make: function(p, sp) { return function(s, dt) { return clamp(p.k1 * s.th + p.k2 * s.om + p.k3 * (s.x - sp) + p.k4 * s.v, -20, 20); }; }
+  },
+  SMC: {
+    label: 'SMC', hex: '#8a1a5a',
+    info: 'Sliding Mode Control. Drives state onto surface sigma=omega+lambda*theta, then slides to origin. tanh replaces sign() to reduce chattering. Very robust to disturbances.',
+    params: [{ id: 'lam', l: 'lambda (slope)', min: 1, max: 20, s: 0.5, v: 8 }, { id: 'eta', l: 'eta (switch)', min: 1, max: 20, s: 0.5, v: 6 }, { id: 'phi', l: 'phi (smooth)', min: 0.01, max: 0.4, s: 0.01, v: 0.1 }],
+    make: function(p, sp) { var ix = 0; return function(s, dt) { ix = clamp(ix + (s.x - sp) * dt, -2, 2); var b = K0[0] * s.th + K0[1] * s.om + K0[2] * (s.x - sp) + K0[3] * s.v + 0.5 * ix; return clamp(b + p.eta * Math.tanh((s.om + p.lam * s.th) / p.phi), -20, 20); }; }
+  },
+  Backstepping: {
+    label: 'Backstepping', hex: '#8a6a00',
+    info: 'Recursive Lyapunov design. Step 1: virtual omega*(theta) stabilises angle. Step 2: real force makes omega track virtual setpoint. Each step carries a Lyapunov certificate.',
+    params: [{ id: 'c1', l: 'c1 (outer)', min: 1, max: 15, s: 0.5, v: 8 }, { id: 'c2', l: 'c2 (inner)', min: 5, max: 40, s: 1, v: 20 }, { id: 'Kxb', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }],
+    make: function(p, sp) { return function(s, dt) { var ad = -p.c1 * s.th - 0.12 * (s.x - sp); var e2 = s.om - ad; return clamp((p.c2 * e2 + s.th + p.c1 * s.om) * 0.38 + p.Kxb * (s.x - sp) + K0[3] * s.v, -20, 20); }; }
+  },
+  MPC: {
+    label: 'MPC', hex: '#b85c00',
+    info: 'Receding horizon optimisation. Simulates N steps ahead for candidate forces, picks lowest cost J = sum(Q*theta^2 + Qx*x^2 + R*u^2). Increase N for more prediction.',
+    params: [{ id: 'N', l: 'N (horizon)', min: 3, max: 20, s: 1, v: 10 }, { id: 'Qth', l: 'Q (angle)', min: 50, max: 200, s: 5, v: 100 }, { id: 'Qx', l: 'Q (cart)', min: 0, max: 30, s: 1, v: 8 }],
+    make: function(p, sp) {
+      var lF = 0;
+      return function(s, dt) {
+        var nom = clamp(K0[0] * s.th + K0[1] * s.om + K0[2] * (s.x - sp) + K0[3] * s.v, -20, 20);
+        var ds = [-6, -2, -0.5, 0, 0.5, 2, 6];
+        var bF = nom, bC = 1e12;
+        for (var di = 0; di < ds.length; di++) {
+          var F = clamp(nom + ds[di], -20, 20);
+          var ss = { th: s.th, om: s.om, x: s.x, v: s.v }; var c = 0;
+          for (var n = 0; n < Math.round(p.N); n++) {
+            ss = rk4(ss, F, 0.025);
+            c += p.Qth * ss.th * ss.th + 2 * ss.om * ss.om + p.Qx * (ss.x - sp) * (ss.x - sp) + 2 * ss.v * ss.v;
+            if (Math.abs(ss.th) > 0.85) { c += 1e7; break; }
+          }
+          if (c < bC) { bC = c; bF = F; }
+        }
+        lF = bF; return bF;
+      };
+    }
+  },
+  MRAC: {
+    label: 'MRAC', hex: '#1a6b6b',
+    info: 'Adaptive control: gain k-hat updates online via MIT rule. Converges to stable value automatically. Watch the state panel as k-hat adapts after mass changes.',
+    params: [{ id: 'gam', l: 'gamma (adapt)', min: 0.05, max: 2, s: 0.05, v: 0.3 }, { id: 'k0', l: 'k0 (init)', min: 20, max: 100, s: 1, v: 60 }],
+    make: function(p, sp) { var kth = p.k0; return function(s, dt) { kth = clamp(kth + p.gam * 0.5 * s.th * s.th * Math.sign(s.th) * dt, 30, 120); return clamp(kth * s.th + K0[1] * s.om + K0[2] * (s.x - sp) + K0[3] * s.v, -20, 20); }; }
+  },
+  FBL: {
+    label: 'Feedback Lin.', hex: '#5b3a8a',
+    info: 'Cancels g*sin(theta) gravity term via feedforward, converting nonlinear plant to a linear integrator chain. Then applies standard linear state feedback.',
+    params: [{ id: 'kpf', l: 'kp (angle)', min: 20, max: 120, s: 1, v: 60 }, { id: 'kdf', l: 'kd (rate)', min: 5, max: 35, s: 0.5, v: 16 }, { id: 'Kxf', l: 'Kx (cart)', min: 0, max: 15, s: 0.5, v: 5 }],
+    make: function(p, sp) { return function(s, dt) { var Fg = Mt * GG * Math.sin(s.th) / Lp * 0.055; return clamp(p.kpf * s.th + p.kdf * s.om + p.Kxf * (s.x - sp) + K0[3] * s.v + Fg, -20, 20); }; }
+  },
+  Fuzzy: {
+    label: 'Fuzzy Logic', hex: '#c0392b',
+    info: 'Gain-scheduling via fuzzy membership functions on |theta|. Small angles use lower gains, larger angles use higher gains. No explicit model required.',
+    params: [{ id: 'fs', l: 'Scale', min: 0.5, max: 2, s: 0.05, v: 1 }, { id: 'fKx', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }, { id: 'fKv', l: 'Kv (vel)', min: 2, max: 20, s: 0.5, v: 8 }],
+    make: function(p, sp) { return function(s, dt) { var a = Math.abs(s.th); var Kp = a < 0.05 ? 60 : a < 0.12 ? 63 : 67; var Kd = a < 0.05 ? 16 : a < 0.12 ? 17 : 18; return clamp(p.fs * (Kp * s.th + Kd * s.om) + p.fKx * (s.x - sp) + p.fKv * s.v, -20, 20); }; }
+  }
+};
+
+// ─────────────────────────────────────────────
+// SIM STATE
+// ─────────────────────────────────────────────
+var curCtrl = 'PID', params = {}, sp = 0, ctrlFn = null;
+var S = { th: 0.06, om: 0, x: 0, v: 0 };
+var kickF = 0, distOn = false, distStr = 3, bobPushF = 0;
+var simT = 0, lastWall = 0, fps = 60, fpsC = 0, fpsA = 0;
+var DT = 0.005, HIST = 160;
+var hist = { th: [], om: [], x: [], F: [] }, phaseHist = [], lastF = 0;
+var hasFallen = false;
+var bobRadius = 0.028;
+
+// THREE.JS objects declared here so resetSim can access them
+var floorMat, fallDisc;
+
+function makeCtrl() {
+  var c = CTRLS[curCtrl]; params = {};
+  c.params.forEach(function(p) { params[p.id] = p.v; });
+  return c.make(params, sp);
+}
+
+function resetSim() {
+  S = { th: 0.06 + (Math.random() - 0.5) * 0.02, om: 0, x: 0, v: 0 };
+  kickF = 0; bobPushF = 0; simT = 0; lastF = 0; hasFallen = false;
+  hist = { th: [], om: [], x: [], F: [] }; phaseHist = [];
+  document.getElementById('failOverlay').style.display = 'none';
+  if (floorMat) floorMat.color.setHex(0xe8e5dd);
+  if (fallDisc) fallDisc.material.opacity = 0;
+  ctrlFn = makeCtrl();
+}
+ctrlFn = makeCtrl();
+
+// ─────────────────────────────────────────────
+// THREE.JS SCENE
+// ─────────────────────────────────────────────
+var midEl = document.getElementById('mid');
+var canvas3d = document.getElementById('c3d');
+var renderer = new THREE.WebGLRenderer({ canvas: canvas3d, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+var scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f2ed);
+scene.fog = new THREE.Fog(0xf4f2ed, 9, 24);
+
+var cam = new THREE.PerspectiveCamera(42, 1, 0.01, 40);
+cam.position.set(0, 0.5, 4.2);
+cam.lookAt(0, 0.35, 0);
+
+function resizeCam() {
+  var W = midEl.clientWidth, H = midEl.clientHeight;
+  renderer.setSize(W, H); cam.aspect = W / H; cam.updateProjectionMatrix();
+}
+resizeCam();
+new ResizeObserver(resizeCam).observe(midEl);
+
+// Lights
+scene.add(new THREE.AmbientLight(0xf0ece4, 0.75));
+var sun = new THREE.DirectionalLight(0xfff8f0, 1.1);
+sun.position.set(3, 7, 4); sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.left = -5; sun.shadow.camera.right = 5;
+sun.shadow.camera.top = 4; sun.shadow.camera.bottom = -1;
+scene.add(sun);
+var fill = new THREE.DirectionalLight(0xe8f4ff, 0.3);
+fill.position.set(-4, 2, -3); scene.add(fill);
+
+// Floor — solid, darkens on fall
+floorMat = new THREE.MeshLambertMaterial({ color: 0xe8e5dd });
+var floor = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+var grid = new THREE.GridHelper(16, 32, 0xd8d5cd, 0xd8d5cd);
+grid.position.y = 0.001; scene.add(grid);
+
+// Track
+var trackBase = new THREE.Mesh(
+  new THREE.BoxGeometry(RAIL * 2, 0.018, 0.12),
+  new THREE.MeshLambertMaterial({ color: 0xd2cfc8 })
+);
+trackBase.position.set(0, 0.009, 0); trackBase.receiveShadow = true; scene.add(trackBase);
+var railMat = new THREE.MeshPhongMaterial({ color: 0xaaa69e, shininess: 60 });
+[-0.045, 0.045].forEach(function(z) {
+  var r = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, RAIL * 2, 8), railMat);
+  r.rotation.z = Math.PI / 2; r.position.set(0, 0.022, z); r.castShadow = true; scene.add(r);
+});
+var stopMat = new THREE.MeshLambertMaterial({ color: 0xb02020 });
+[-RAIL, RAIL].forEach(function(x) {
+  var s = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.06, 0.14), stopMat);
+  s.position.set(x, 0.03, 0); scene.add(s);
+});
+
+// Cart
+var cartGrp = new THREE.Group(); scene.add(cartGrp);
+var cartBody = new THREE.Mesh(
+  new THREE.BoxGeometry(0.22, 0.08, 0.1),
+  new THREE.MeshPhongMaterial({ color: 0x2c3e6b, shininess: 30 })
+);
+cartBody.position.y = 0.04; cartBody.castShadow = true; cartGrp.add(cartBody);
+var wMat = new THREE.MeshPhongMaterial({ color: 0x6a6660, shininess: 50 });
+[-0.08, 0.08].forEach(function(x) {
+  var w = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.11, 12), wMat);
+  w.rotation.x = Math.PI / 2; w.position.set(x, 0.018, 0); w.castShadow = true; cartGrp.add(w);
+});
+var pivotMesh = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.012, 0.012, 0.11, 12),
+  new THREE.MeshPhongMaterial({ color: 0x9a9690, shininess: 80 })
+);
+pivotMesh.rotation.x = Math.PI / 2;
+pivotMesh.position.set(0, 0.08, 0);
+cartGrp.add(pivotMesh);
+
+// Pendulum group
+var pendGrp = new THREE.Group();
+pendGrp.position.set(0, 0.08, 0);
+cartGrp.add(pendGrp);
+
+var rod = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.006, 0.006, Lp * 2, 10),
+  new THREE.MeshPhongMaterial({ color: 0x888480, shininess: 40 })
+);
+rod.position.y = Lp; rod.castShadow = true; pendGrp.add(rod);
+
+var bobMat = new THREE.MeshPhongMaterial({ color: 0xc0392b, shininess: 80, emissive: 0x200000, emissiveIntensity: 0.1 });
+var bob = new THREE.Mesh(new THREE.SphereGeometry(bobRadius, 14, 14), bobMat);
+bob.position.y = Lp * 2; bob.castShadow = true; pendGrp.add(bob);
+
+// Force arrow
+var arrMat = new THREE.MeshLambertMaterial({ color: 0xb85c00, transparent: true, opacity: 0.85 });
+var arrShaft = new THREE.Mesh(new THREE.BoxGeometry(1, 0.012, 0.012), arrMat);
+var arrHead = new THREE.Mesh(new THREE.ConeGeometry(0.018, 0.045, 8), arrMat);
+arrHead.rotation.z = -Math.PI / 2;
+var arrGrp = new THREE.Group(); scene.add(arrGrp);
+arrGrp.add(arrShaft); arrGrp.add(arrHead);
+
+// Fall disc on ground
+fallDisc = new THREE.Mesh(
+  new THREE.CircleGeometry(0.1, 20),
+  new THREE.MeshLambertMaterial({ color: 0xc0392b, transparent: true, opacity: 0 })
+);
+fallDisc.rotation.x = -Math.PI / 2;
+fallDisc.position.y = 0.002;
+scene.add(fallDisc);
+
+// Bob push indicator
+var pushIndicator = new THREE.Mesh(
+  new THREE.SphereGeometry(0.04, 8, 8),
+  new THREE.MeshLambertMaterial({ color: 0xff6600, transparent: true, opacity: 0 })
+);
+scene.add(pushIndicator);
+var pushTimer = 0;
+
+// Trail
+var TLEN = 100;
+var trailPts = [];
+for (var ti = 0; ti < TLEN; ti++) trailPts.push(new THREE.Vector3());
+var trailGeo = new THREE.BufferGeometry().setFromPoints(trailPts);
+var trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xc0392b, transparent: true, opacity: 0.15 }));
+scene.add(trailLine);
+var tIdx = 0;
+
+// ─────────────────────────────────────────────
+// MOUSE ORBIT + BOB CLICK
+// ─────────────────────────────────────────────
+var camPhi = Math.PI / 2 - 0.18, camTheta = 0, camR = 4.2;
+var drag = false, mx0 = 0, my0 = 0, dragged = false;
+var ray = new THREE.Raycaster(), mouse2 = new THREE.Vector2();
+
+function updateCam() {
+  cam.position.set(
+    camR * Math.sin(camPhi) * Math.sin(camTheta),
+    camR * Math.cos(camPhi) + 0.3,
+    camR * Math.sin(camPhi) * Math.cos(camTheta)
+  );
+  cam.lookAt(0, 0.35, 0);
+}
+
+canvas3d.addEventListener('mousedown', function(e) { drag = true; dragged = false; mx0 = e.clientX; my0 = e.clientY; });
+window.addEventListener('mouseup', function(e) {
+  if (!dragged) {
+    var rect = canvas3d.getBoundingClientRect();
+    mouse2.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouse2.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    ray.setFromCamera(mouse2, cam);
+    var hits = ray.intersectObject(bob, false);
+    if (hits.length > 0) {
+      var ang = Math.random() * Math.PI * 2;
+      S.om += (distStr * 0.8) / Math.max(0.01, Ip) / Lp * 0.03;
+      bobPushF = Math.cos(ang) * distStr * 0.4;
+      var bwp = new THREE.Vector3(); bob.getWorldPosition(bwp);
+      pushIndicator.position.copy(bwp);
+      pushIndicator.material.opacity = 0.85;
+      pushTimer = 0.5;
+    }
+  }
+  drag = false;
+});
+window.addEventListener('mousemove', function(e) {
+  if (!drag) return;
+  var dx = e.clientX - mx0, dy = e.clientY - my0;
+  if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragged = true;
+  camTheta -= dx * 0.007; camPhi = clamp(camPhi - dy * 0.007, 0.1, 1.4);
+  mx0 = e.clientX; my0 = e.clientY;
+});
+canvas3d.addEventListener('wheel', function(e) { e.preventDefault(); camR = clamp(camR + e.deltaY * 0.008, 1.5, 10); }, { passive: false });
+canvas3d.addEventListener('touchstart', function(e) { drag = true; dragged = false; mx0 = e.touches[0].clientX; my0 = e.touches[0].clientY; });
+canvas3d.addEventListener('touchend', function() { drag = false; });
+canvas3d.addEventListener('touchmove', function(e) {
+  e.preventDefault(); dragged = true;
+  camTheta -= (e.touches[0].clientX - mx0) * 0.009;
+  camPhi = clamp(camPhi - (e.touches[0].clientY - my0) * 0.009, 0.1, 1.4);
+  mx0 = e.touches[0].clientX; my0 = e.touches[0].clientY;
+}, { passive: false });
+
+// ─────────────────────────────────────────────
+// FALL DETECTION
+// ─────────────────────────────────────────────
+function checkFall() {
+  if (hasFallen) return;
+  var deg = Math.abs(S.th) * 180 / Math.PI;
+  var bobY = 0.08 + Lp * 2 * Math.cos(S.th);
+  if (deg > 72 || bobY <= bobRadius + 0.005) {
+    hasFallen = true;
+    var rec = recGains();
+    var ctrl = CTRLS[curCtrl];
+    var gainHTML = '<div><span class="fl">Controller: </span><span class="fv">' + curCtrl + '</span></div>';
+    ctrl.params.forEach(function(p) {
+      gainHTML += '<div><span class="fl">' + p.l + ': </span><span class="fv">' + params[p.id].toFixed(2) + '</span></div>';
+    });
+    var reason = deg > 72
+      ? 'Angle reached ' + deg.toFixed(0) + '°, exceeding the 72° recovery limit. Gains were insufficient for mp = ' + Mp.toFixed(3) + ' kg.'
+      : 'Bob contacted the ground — rod swept past horizontal.';
+    document.getElementById('failReason').textContent = reason;
+    document.getElementById('failGains').innerHTML = gainHTML;
+    document.getElementById('failMp').textContent = Mp.toFixed(3);
+    document.getElementById('suggestGains').innerHTML =
+      '<div><span class="fl">Kp (angle): </span><span class="fg">' + rec.Kp + '</span></div>' +
+      '<div><span class="fl">Kd (rate):  </span><span class="fg">' + rec.Kd + '</span></div>' +
+      '<div><span class="fl">Ki (integ): </span><span class="fg">' + rec.Ki + '</span></div>' +
+      '<div><span class="fl">Kx (cart):  </span><span class="fg">' + rec.Kx + '</span></div>';
+    document.getElementById('failOverlay').style.display = 'flex';
+    floorMat.color.setHex(0xd8c8c0);
+  }
+}
+
+function applyRecommended() {
+  var rec = recGains();
+  curCtrl = 'PID';
+  var c = CTRLS['PID']; params = {};
+  c.params.forEach(function(p) {
+    params[p.id] = p.id === 'Kp' ? rec.Kp : p.id === 'Kd' ? rec.Kd : p.id === 'Ki' ? rec.Ki : p.id === 'Kx' ? rec.Kx : p.v;
+  });
+  ctrlFn = c.make(params, sp);
+  renderCtrlBtns(); renderGains();
+  document.getElementById('cInfo').textContent = c.info;
+  resetSim();
+}
+
+// ─────────────────────────────────────────────
+// PLOTS
+// ─────────────────────────────────────────────
+function drawPlot(id, data, label, unit, color, ymin, ymax, spV) {
+  var c = document.getElementById(id); if (!c) return;
+  var W = c.parentElement.clientWidth || 180, H = c.parentElement.clientHeight || 128;
+  if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = '#eceae4'; ctx.fillRect(0, 0, W, H);
+  var mid = (ymax + ymin) / 2, range = ymax - ymin;
+  var toY = function(v) { return H * 0.85 - clamp((v - mid) / range, -0.45, 0.45) * H * 0.9; };
+  ctx.strokeStyle = '#d0cdc6'; ctx.lineWidth = 0.8;
+  ctx.beginPath(); ctx.moveTo(0, toY(0)); ctx.lineTo(W, toY(0)); ctx.stroke();
+  if (spV !== undefined) {
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = '#b0aca4'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(0, toY(spV)); ctx.lineTo(W, toY(spV)); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  if (data.length > 1) {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (var i = 0; i < data.length; i++) {
+      var px = i / (HIST - 1) * W, py = toY(data[i]);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+  }
+  ctx.fillStyle = '#9e9b93'; ctx.font = '10px IBM Plex Mono,monospace'; ctx.fillText(label, 5, 13);
+  if (data.length) {
+    ctx.fillStyle = color; ctx.font = '500 11px IBM Plex Mono,monospace';
+    ctx.textAlign = 'right'; ctx.fillText(data[data.length - 1].toFixed(2) + unit, W - 5, 13); ctx.textAlign = 'left';
+  }
+}
+
+function drawPhase(pts, color) {
+  var c = document.getElementById('pPh'); if (!c) return;
+  var W = c.offsetWidth || 110, H = c.height || 88;
+  if (c.width !== W) c.width = W;
+  var ctx = c.getContext('2d');
+  ctx.fillStyle = '#eceae4'; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = '#d0cdc6'; ctx.lineWidth = 0.5;
+  ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, H); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, H / 2); ctx.lineTo(W, H / 2); ctx.stroke();
+  ctx.fillStyle = '#c0bdb6'; ctx.font = '8px IBM Plex Mono,monospace';
+  ctx.fillText('th>', W - 14, H / 2 - 2); ctx.fillText('om^', W / 2 + 2, 9);
+  if (pts.length > 1) {
+    ctx.strokeStyle = color; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.65; ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      var px = clamp(W / 2 + pts[i][0] / 0.6 * W * 0.44, 1, W - 1);
+      var py = clamp(H / 2 - pts[i][1] / 4 * H * 0.44, 1, H - 1);
+      if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    var last = pts[pts.length - 1];
+    var bx = clamp(W / 2 + last[0] / 0.6 * W * 0.44, 3, W - 3);
+    var by = clamp(H / 2 - last[1] / 4 * H * 0.44, 3, H - 3);
+    ctx.fillStyle = color; ctx.beginPath(); ctx.arc(bx, by, 3, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
+// ─────────────────────────────────────────────
+// UI
+// ─────────────────────────────────────────────
+function renderCtrlBtns() {
+  var cont = document.getElementById('cBtns'); cont.innerHTML = '';
+  Object.keys(CTRLS).forEach(function(k) {
+    var c = CTRLS[k];
+    var btn = document.createElement('button');
+    btn.className = 'cbtn' + (k === curCtrl ? ' active' : '');
+    var dot = document.createElement('span'); dot.className = 'cdot'; dot.style.background = c.hex;
+    btn.appendChild(dot); btn.appendChild(document.createTextNode(c.label));
+    btn.onclick = function() { curCtrl = k; ctrlFn = makeCtrl(); renderCtrlBtns(); renderGains(); document.getElementById('cInfo').textContent = c.info; };
+    cont.appendChild(btn);
+  });
+}
+
+function renderGains() {
+  var cont = document.getElementById('gPanel'); cont.innerHTML = '';
+  CTRLS[curCtrl].params.forEach(function(p) {
+    var d = document.createElement('div'); d.className = 'gr';
+    d.innerHTML = '<div class="gm"><span class="gn">' + p.l + '</span><span class="gv" id="gv_' + p.id + '">' + params[p.id].toFixed(2) + '</span></div><input type="range" min="' + p.min + '" max="' + p.max + '" step="' + p.s + '" value="' + params[p.id] + '">';
+    d.querySelector('input').addEventListener('input', function(e) {
+      params[p.id] = parseFloat(e.target.value);
+      var el = document.getElementById('gv_' + p.id); if (el) el.textContent = params[p.id].toFixed(2);
+      ctrlFn = CTRLS[curCtrl].make(params, sp);
+    });
+    cont.appendChild(d);
+  });
+}
+
+function updateRight(F) {
+  var deg = S.th * 180 / Math.PI;
+  var stable = !hasFallen && Math.abs(deg) < 7;
+  var col = hasFallen ? '#c0392b' : stable ? '#2a6b3c' : Math.abs(deg) < 25 ? '#b85c00' : '#c0392b';
+  document.getElementById('statusBig').style.color = col;
+  document.getElementById('statusBig').textContent = hasFallen ? 'FALLEN' : stable ? 'BALANCED' : 'UNSTABLE';
+  document.getElementById('dot').style.background = hasFallen ? '#c0392b' : stable ? '#4a4' : '#b85c00';
+  var rows = [
+    ['theta', deg.toFixed(2), 'deg'],
+    ['omega', (S.om * 180 / Math.PI).toFixed(1), 'deg/s'],
+    ['x', S.x.toFixed(3), 'm'],
+    ['xdot', S.v.toFixed(3), 'm/s'],
+    ['F', F.toFixed(2), 'N'],
+    ['mp', Mp.toFixed(3), 'kg'],
+    ['t', simT.toFixed(1), 's']
+  ];
+  document.getElementById('sPanel').innerHTML = rows.map(function(r) {
+    return '<div class="sr"><span class="sk">' + r[0] + '</span><span class="sv">' + r[1] + '<span style="font-size:8px;color:#9e9b93"> ' + r[2] + '</span></span></div>';
+  }).join('');
+  var err = Math.abs(deg);
+  var perf = [
+    ['|theta|', err.toFixed(2) + 'deg', err < 2 ? '#2a6b3c' : err < 12 ? '#b85c00' : '#c0392b'],
+    ['|F|', Math.abs(F).toFixed(2) + ' N', '#1a4f7a'],
+    ['|x|', Math.abs(S.x).toFixed(3) + ' m', '#5b3a8a']
+  ];
+  document.getElementById('perfPanel').innerHTML = perf.map(function(r) {
+    return '<div class="sr"><span class="sk">' + r[0] + '</span><span class="sv" style="color:' + r[2] + '">' + r[1] + '</span></div>';
+  }).join('');
+}
+
+// ─────────────────────────────────────────────
+// MATH MODAL
+// ─────────────────────────────────────────────
+var MATH_TABS = [
+  { tab: 'Equations of Motion', id: 'eom' },
+  { tab: 'Linearisation', id: 'lin' },
+  { tab: 'Routh-Hurwitz', id: 'routh' },
+  { tab: 'LQR Design', id: 'lqr' },
+  { tab: 'Lyapunov / SMC', id: 'lyap' },
+  { tab: 'Your Rig Calculator', id: 'calc' }
+];
+
+var MATH_CONTENT = {
+  eom: function() {
+    var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
+    return '<h2>Lagrangian Derivation</h2>' +
+      '<p>Two degrees of freedom: cart position x and pendulum angle theta from vertical. Lagrangian L = T minus V gives coupled nonlinear EOMs:</p>' +
+      '<div class="eq">(Mc+Mp)xdd + Mp*L*(tdd*cos(t) - td^2*sin(t)) + bc*xd = F\n(Ic+Mp*L^2)*tdd + Mp*L*xdd*cos(t) + bp*td - Mp*g*L*sin(t) = 0</div>' +
+      '<h2>Physical parameters (this simulation)</h2>' +
+      '<table><tr><th>Symbol</th><th>Value</th><th>Description</th></tr>' +
+      '<tr><td>Mc</td><td>0.57 kg</td><td>Cart mass</td></tr>' +
+      '<tr><td>Mp</td><td>' + Mp.toFixed(3) + ' kg</td><td>Bob mass (adjustable slider)</td></tr>' +
+      '<tr><td>L</td><td>0.330 m</td><td>Pivot to bob</td></tr>' +
+      '<tr><td>bc</td><td>4.3 N.s/m</td><td>Cart friction</td></tr>' +
+      '<tr><td>bp</td><td>0.0024 N.m.s</td><td>Pivot friction</td></tr></table>' +
+      '<h2>Natural frequency at upright equilibrium</h2>' +
+      '<div class="eq">wn = sqrt( g/L * Mt/(Mt-Mp) ) = ' + wn.toFixed(3) + ' rad/s  (' + (wn / 2 / Math.PI).toFixed(2) + ' Hz)\n\nOpen-loop unstable pole at: p = +' + wn.toFixed(3) + '\nController must move this into the left half-plane.</div>' +
+      '<p class="note">Heavier bob raises wn and makes dynamics faster — same gains that worked before will be insufficient.</p>';
+  },
+  lin: function() {
+    var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
+    return '<h2>Linearised state-space (around theta = 0)</h2>' +
+      '<p>Substituting sin(theta) approx theta, cos(theta) approx 1, theta-dot squared approx 0:</p>' +
+      '<div class="eq">d/dt [theta, omega, x, xdot]^T = A*x + B*u\n\nA approx:\n  row 1:  [ 0,       1,    0,  0   ]\n  row 2:  [ g/L,    -bp/Ip, 0,  0   ]\n  row 3:  [ 0,       0,    0,  1   ]\n  row 4:  [ -Mp*g/Mt, 0,   0, -bc/Mt]\n\nB approx: [ 0, -1/Ip, 0, 1/Mt ]^T</div>' +
+      '<h2>Controllability</h2>' +
+      '<p>rank[B, AB, A^2 B, A^3 B] = 4. Full rank — completely controllable. Any pole placement is achievable with one force input.</p>' +
+      '<h2>Open-loop poles</h2>' +
+      '<div class="eq">Unstable:  p1 = +' + wn.toFixed(3) + '  (right half-plane — must move)\nStable:    p2 = -' + wn.toFixed(3) + '\nCart:      p3,4 near 0 and -bc/Mt = ' + (-bc / Mt).toFixed(2) + '</div>' +
+      '<p class="note">Target closed-loop poles: Re(p) in [-8, -2]. Too far left saturates the actuator; too close means slow recovery.</p>';
+  },
+  routh: function() {
+    var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
+    var rec = recGains();
+    return '<h2>Minimum stable gains (Routh-Hurwitz)</h2>' +
+      '<p>For F = Kp*theta + Kd*omega + Kx*x + Kv*xdot the closed-loop characteristic polynomial is 4th order. Necessary conditions:</p>' +
+      '<div class="eq">Kp > Mt*g/L  =  ' + (Mt * GG / Lp).toFixed(1) + '  N/rad   (minimum angle gain)\nKd > 0             (any positive damping stabilises)\nKx, Kv > 0         (needed for cart regulation)\n\nFor current Mp = ' + Mp.toFixed(3) + ' kg:\n  Kp_min  = ' + Math.ceil(Mt * GG / Lp) + '\n  Kp_rec  = ' + rec.Kp + '   (2.2x safety margin)\n  Kd_rec  = ' + rec.Kd + '</div>' +
+      '<h2>Why gains scale with mass</h2>' +
+      '<p>Gravity torque = Mp*g*L*sin(theta). Heavier bob creates more torque. The minimum Kp grows as Mt*g/L, so doubling Mp raises Kp_min by roughly 20-30%.</p>' +
+      '<p class="note">This is why the fall overlay auto-computes new gains based on current Mp.</p>';
+  },
+  lqr: function() {
+    return '<h2>Linear-Quadratic Regulator</h2>' +
+      '<p>LQR minimises the infinite-horizon cost functional:</p>' +
+      '<div class="eq">J = integral_0^inf ( x^T Q x + u^T R u ) dt\n\nSolution: Algebraic Riccati equation\n  A^T P + P A - P B R^-1 B^T P + Q = 0\nGain:  K = R^-1 B^T P  =>  u = -K x</div>' +
+      '<h2>Tuning the Q/R matrices</h2>' +
+      '<table><tr><th>Increase</th><th>Effect on closed-loop</th></tr>' +
+      '<tr><td>Q(1,1) — K1</td><td>Faster angle correction, more force used</td></tr>' +
+      '<tr><td>Q(2,2) — K2</td><td>More damping, less overshoot</td></tr>' +
+      '<tr><td>Q(3,3) — K3</td><td>Tighter cart position hold</td></tr>' +
+      '<tr><td>R (larger)</td><td>Softer force, poles closer to origin</td></tr></table>' +
+      '<h2>Key insight</h2>' +
+      '<p>The LQR sliders in this simulator ARE the K matrix entries. Increase K1 until oscillation damps, then increase K2 to reduce ringing. K3 and K4 trade off cart regulation.</p>';
+  },
+  lyap: function() {
+    return '<h2>Lyapunov stability (Sliding Mode)</h2>' +
+      '<p>Define sliding surface sigma = omega + lambda*theta. Lyapunov candidate V = 0.5*sigma^2:</p>' +
+      '<div class="eq">V_dot = sigma * sigma_dot = sigma*(omega_dot + lambda*omega)\n\nControl:  u = u_eq - eta * tanh(sigma / phi)\n\nResult:   V_dot &lt; 0 whenever |sigma| &gt; phi  (boundary layer)\n          => sigma converges to |sigma| &lt; phi\n          => (theta, omega) -> 0</div>' +
+      '<h2>Backstepping proof sketch</h2>' +
+      '<div class="eq">Step 1:  V1 = 0.5*theta^2\n         Choose alpha(theta) = -c1*theta\n         V1_dot = theta*omega + theta*(alpha-omega) = -c1*theta^2 &lt;= 0\n\nStep 2:  e2 = omega - alpha(theta),  V2 = V1 + 0.5*e2^2\n         Choose F so V2_dot = -c1*theta^2 - c2*e2^2 &lt;= 0  always</div>' +
+      '<h2>Common failure modes and fixes</h2>' +
+      '<table><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr>' +
+      '<tr><td>Growing oscillation</td><td>Kd too small</td><td class="ok">Increase Kd / K2</td></tr>' +
+      '<tr><td>Falls slowly</td><td>Kp below minimum</td><td class="ok">Increase Kp / K1</td></tr>' +
+      '<tr><td>Cart hits rail</td><td>Kx = 0</td><td class="ok">Add Kx &gt; 3</td></tr>' +
+      '<tr><td>Heavier mass fails</td><td>Fixed gains, larger torque</td><td class="ok">Scale K1 with Mp*g/L</td></tr>' +
+      '<tr><td>Integral windup</td><td>Ki too large</td><td class="ok">Clamp integrator</td></tr></table>';
+  },
+  calc: function() {
+    return '<h2>Compute gains for your physical rig</h2>' +
+      '<p>Enter your hardware parameters. Derives minimum stable PID gains from Routh-Hurwitz on the linearised model.</p>' +
+      '<div class="irow"><label>Cart mass Mc</label><input type="number" id="ic_Mc" value="0.57" step="0.01"><span>kg</span></div>' +
+      '<div class="irow"><label>Bob mass Mp</label><input type="number" id="ic_Mp" value="' + Mp.toFixed(3) + '" step="0.001"><span>kg</span></div>' +
+      '<div class="irow"><label>Pivot-to-bob L</label><input type="number" id="ic_L" value="0.3302" step="0.005"><span>m</span></div>' +
+      '<div class="irow"><label>Cart friction bc</label><input type="number" id="ic_bc" value="4.3" step="0.1"><span>N.s/m</span></div>' +
+      '<div class="irow"><label>Max force Fmax</label><input type="number" id="ic_Fmax" value="20" step="1"><span>N</span></div>' +
+      '<button class="calcbtn" onclick="calcRig()">Calculate</button>' +
+      '<div id="ic_result"></div>';
+  }
+};
+
+function calcRig() {
+  var Mc_ = parseFloat(document.getElementById('ic_Mc').value) || 0.57;
+  var Mp_ = parseFloat(document.getElementById('ic_Mp').value) || 0.127;
+  var L_  = parseFloat(document.getElementById('ic_L').value)  || 0.33;
+  var bc_ = parseFloat(document.getElementById('ic_bc').value) || 4.3;
+  var Fm_ = parseFloat(document.getElementById('ic_Fmax').value) || 20;
+  var Mt_ = Mc_ + Mp_;
+  var wn = Math.sqrt(GG / L_ * Mt_ / (Mt_ - Mp_ + 0.001));
+  var Kpmin = Math.ceil(Mt_ * GG / L_);
+  var Kprec = Math.ceil(Mt_ * L_ * wn * wn * 2.2);
+  var Kdrec = Math.ceil(Mt_ * L_ * wn * 1.4);
+  var Kxrec = Math.ceil(wn * 0.8);
+  var Kvrec = Math.ceil(wn * 1.2);
+  var maxAng = Math.asin(Math.min(1, Fm_ / (Mt_ * wn * wn * L_))) * 180 / Math.PI;
+  var div = document.getElementById('ic_result'); div.style.display = 'block';
+  div.innerHTML =
+    '<div class="ro">Natural frequency:  wn = ' + wn.toFixed(3) + ' rad/s  (' + (wn / 2 / Math.PI).toFixed(2) + ' Hz)</div>' +
+    '<div class="ro">Unstable pole:      +/- ' + wn.toFixed(3) + '</div>' +
+    '<div style="margin:6px 0;border-top:1px solid var(--border);"></div>' +
+    '<div>Kp minimum (Routh):   <span class="rg">' + Kpmin + ' N/rad</span></div>' +
+    '<div>Kp recommended:       <span class="rg">' + Kprec + ' N/rad</span></div>' +
+    '<div>Kd recommended:       <span class="rg">' + Kdrec + ' N.s/rad</span></div>' +
+    '<div>Ki recommended:       <span class="rg">0.5 to 2 N.s2/rad</span></div>' +
+    '<div>Kx recommended:       <span class="rg">' + Kxrec + ' N/m</span></div>' +
+    '<div>Kv recommended:       <span class="rg">' + Kvrec + ' N.s/m</span></div>' +
+    '<div style="margin:6px 0;border-top:1px solid var(--border);"></div>' +
+    '<div>Max recoverable angle at Fmax = ' + Fm_ + ' N:  <span class="rg">' + maxAng.toFixed(1) + 'deg</span></div>' +
+    '<div class="ro" style="margin-top:5px;font-size:9px;">Start with Kp_min, increase Kd until oscillation stops, then tune Kx.</div>';
+}
+
+var activeMathTab = 'eom';
+function buildMathModal() {
+  var tabsEl = document.getElementById('mathTabs');
+  tabsEl.innerHTML = '';
+  MATH_TABS.forEach(function(sec) {
+    var t = document.createElement('button');
+    t.className = 'mtab' + (sec.id === activeMathTab ? ' active' : '');
+    t.textContent = sec.tab;
+    t.onclick = function() {
+      activeMathTab = sec.id;
+      document.querySelectorAll('.mtab').forEach(function(b) { b.classList.remove('active'); });
+      t.classList.add('active');
+      document.getElementById('mathBody').innerHTML = MATH_CONTENT[sec.id]();
+    };
+    tabsEl.appendChild(t);
+  });
+  document.getElementById('mathBody').innerHTML = MATH_CONTENT[activeMathTab]();
+}
+
+function openMath() {
+  buildMathModal();
+  document.getElementById('mathModal').classList.add('open');
+}
+function closeMath() { document.getElementById('mathModal').classList.remove('open'); }
+document.getElementById('mathModal').addEventListener('click', function(e) {
+  if (e.target === document.getElementById('mathModal')) closeMath();
+});
+
+// ─────────────────────────────────────────────
+// MAIN LOOP
+// ─────────────────────────────────────────────
+var accum = 0;
+
+function animate(now) {
+  requestAnimationFrame(animate);
+  var wall = Math.min((now - lastWall) / 1000, 0.05); lastWall = now;
+  fpsC++; fpsA += wall;
+  if (fpsA > 0.6) { fps = Math.round(fpsC / fpsA); fpsC = 0; fpsA = 0; }
+
+  accum += wall;
+  while (accum >= DT) {
+    accum -= DT;
+    if (!hasFallen) {
+      var dist = 0;
+      if (distOn) dist = (Math.sin(simT * 1.9 + 1.1) * 0.55 + Math.cos(simT * 3.1) * 0.35) * distStr;
+      if (kickF) { dist += kickF; kickF = 0; }
+      if (bobPushF) { dist += bobPushF; bobPushF = 0; }
+      var F = clamp(ctrlFn(S, DT), -20, 20);
+      lastF = F;
+      S = rk4(S, F + dist, DT);
+      simT += DT;
+      hist.th.push(S.th * 180 / Math.PI);
+      hist.om.push(S.om * 180 / Math.PI);
+      hist.x.push(S.x); hist.F.push(F);
+      phaseHist.push([S.th, S.om]);
+      if (hist.th.length > HIST) { hist.th.shift(); hist.om.shift(); hist.x.shift(); hist.F.shift(); }
+      if (phaseHist.length > HIST) phaseHist.shift();
+      checkFall();
+    } else {
+      // Free fall under gravity, bounce off floor
+      S = rk4(S, 0, DT);
+      var bobY = 0.08 + Lp * 2 * Math.cos(S.th);
+      if (bobY < bobRadius + 0.005) {
+        var thLim = Math.acos(clamp((0.08 - bobRadius - 0.005) / (Lp * 2), -1, 1));
+        if (Math.abs(S.th) > thLim) { S.th = Math.sign(S.th) * thLim; S.om *= -0.25; }
+      }
+      simT += DT;
+    }
+  }
+
+  // Push indicator fade
+  if (pushTimer > 0) {
+    pushTimer -= wall;
+    pushIndicator.material.opacity = Math.max(0, pushTimer / 0.5 * 0.85);
+  }
+
+  // 3D positions
+  cartGrp.position.x = S.x;
+  pendGrp.rotation.z = S.th;
+
+  // Force arrow
+  var fmag = Math.abs(lastF);
+  arrGrp.visible = !hasFallen && fmag > 0.3;
+  if (!hasFallen && fmag > 0.3) {
+    var len = Math.min(0.55, fmag / 14);
+    var dir = Math.sign(lastF);
+    arrShaft.scale.x = len;
+    arrShaft.position.set(S.x + dir * len / 2, 0.04, 0);
+    arrHead.position.set(S.x + dir * len, 0.04, 0);
+    arrHead.rotation.z = lastF > 0 ? -Math.PI / 2 : Math.PI / 2;
+  }
+
+  // Bob world pos for trail and fall disc
+  var bobWP = new THREE.Vector3(); bob.getWorldPosition(bobWP);
+  trailPts[tIdx % TLEN].copy(bobWP); tIdx++;
+  var tord = []; for (var i = 0; i < TLEN; i++) tord.push(trailPts[(tIdx + i) % TLEN].clone());
+  trailGeo.setFromPoints(tord); trailGeo.attributes.position.needsUpdate = true;
+
+  if (hasFallen) {
+    fallDisc.position.set(bobWP.x, 0.002, bobWP.z);
+    fallDisc.material.opacity = 0.45;
+    floorMat.color.setHex(0xd8c8c0);
+  }
+
+  // Bob appearance
+  var danger = hasFallen || Math.abs(S.th) > 0.3;
+  bobMat.color.setHex(danger ? 0xc0392b : 0xd04040);
+  bobMat.emissive.setHex(hasFallen ? 0x500000 : danger ? 0x300000 : 0x100000);
+  bobMat.emissiveIntensity = hasFallen ? 0.55 : danger ? 0.2 : 0.07;
+
+  updateCam();
+  renderer.render(scene, cam);
+
+  var cc = CTRLS[curCtrl].hex;
+  drawPlot('pA', hist.th, 'angle', 'deg', cc, -65, 65, 0);
+  drawPlot('pO', hist.om, 'ang vel', 'deg/s', '#6b6860', -150, 150, 0);
+  drawPlot('pX', hist.x, 'cart x', 'm', '#5b3a8a', -RAIL, RAIL, sp);
+  drawPlot('pF', hist.F, 'force', 'N', '#b85c00', -22, 22, 0);
+  drawPhase(phaseHist, cc);
+  updateRight(lastF);
+  document.getElementById('hT').textContent = 't = ' + simT.toFixed(2) + ' s';
+  document.getElementById('hA').textContent = 'theta = ' + (S.th * 180 / Math.PI).toFixed(1) + 'deg';
+  document.getElementById('hF').textContent = fps + ' fps';
+}
+
+// ─────────────────────────────────────────────
+// EVENTS
+// ─────────────────────────────────────────────
+document.getElementById('dChk').addEventListener('change', function(e) { distOn = e.target.checked; });
+document.getElementById('dStr').addEventListener('input', function(e) {
+  distStr = parseFloat(e.target.value);
+  document.getElementById('dStrV').textContent = distStr.toFixed(1) + ' N';
+});
+document.getElementById('kick').addEventListener('click', function() {
+  kickF = distStr * 5;
+  if (hasFallen) resetSim();
+});
+document.getElementById('spSlider').addEventListener('input', function(e) {
+  sp = parseFloat(e.target.value);
+  document.getElementById('spV').textContent = sp.toFixed(2) + ' m';
+  ctrlFn = CTRLS[curCtrl].make(params, sp);
+});
+document.getElementById('mpSlider').addEventListener('input', function(e) {
+  Mp = parseFloat(e.target.value); rephy();
+  document.getElementById('mpV').textContent = Mp.toFixed(3) + ' kg';
+  bobRadius = 0.028 * Math.cbrt(Mp / 0.127);
+  bob.geometry.dispose();
+  bob.geometry = new THREE.SphereGeometry(bobRadius, 14, 14);
+  ctrlFn = CTRLS[curCtrl].make(params, sp);
+});
+document.getElementById('mathBtn').addEventListener('click', openMath);
+
+// Init
+renderCtrlBtns();
+renderGains();
+document.getElementById('cInfo').textContent = CTRLS[curCtrl].info;
+lastWall = performance.now();
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
