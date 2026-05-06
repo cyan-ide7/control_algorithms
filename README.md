@@ -21,3 +21,6 @@ directly and the scripts load in order. Each file owns one area of behavior.
 When adding a feature, prefer changing the file that owns that behavior first.
 If a change needs cross-file state, keep the shared variable in `state.js` or
 the domain file that naturally owns it.
+
+
+this project is still work in progress , would be glad to have you feedbacks please check out and try the sim in website
