@@ -23,6 +23,6 @@ If a change needs cross-file state, keep the shared variable in `state.js` or
 the domain file that naturally owns it.
 
 i will be improving the physics further more ik its not completely accurate 
-this project is still work in progress , would be glad to have your feedbacks please check out in website
+this project is still work in progress , would be glad to have your feedbacks please check out 
 https://cyan-ide7.github.io/control_algorithms/
 :D
