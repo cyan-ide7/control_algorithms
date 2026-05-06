@@ -1,6 +1,6 @@
 # Pendulum Lab Source Map
 
-This project is intentionally kept as a browser-native app: open `main.html`
+This project is intentionally kept as a browser-native app: open `index.html`
 directly and the scripts load in order. Each file owns one area of behavior.
 
 - `physics.js`: physical constants, mass recalculation, RK4 integration, and
