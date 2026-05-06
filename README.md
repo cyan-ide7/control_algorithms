@@ -23,4 +23,4 @@ If a change needs cross-file state, keep the shared variable in `state.js` or
 the domain file that naturally owns it.
 
 
-this project is still work in progress , would be glad to have you feedbacks please check out and try the sim in website
+this project is still work in progress , would be glad to have your feedbacks please check out in website
