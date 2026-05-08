@@ -27,7 +27,7 @@ function observeStateVector(s) {
 function computeControlForce(obs) {
   var F = lastFVal;
   if (simT >= lastCtrlT + (1 / simGaps.hz)) {
-    F = clamp(ctrlFn(obs, DT), -20, 20);
+    F = clamp(ctrlFn(obs, DT), -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
     if (Math.abs(F) < simGaps.deadzone) F = 0;
     lastFVal = F;
     lastCtrlT = simT;
@@ -67,21 +67,28 @@ function stepBalancedSimulation() {
 
 function stepFallenSimulation() {
   S = rk4(S, 0, DT);
-  var bobY = 0.08 + Lp * 2 * Math.cos(S.th);
+  var rodLength = Lp * 2;
+  var pivotY = 0.08;
+  var bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
   var groundY = bobRadius + 0.002;
-  if (bobY < groundY) {
-    var thLim = Math.acos(clamp((0.08 - groundY) / (Lp * 2), -1, 1));
+  if (bobPos.y < groundY) {
+    var thLim = Math.acos(clamp((groundY - pivotY) / rodLength, -1, 1));
     if (Math.abs(S.th) > thLim) {
       S.th = Math.sign(S.th) * thLim;
-      var isFallingDown = (S.th > 0 && S.om > 0) || (S.th < 0 && S.om < 0);
-      if (isFallingDown) {
+      bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
+
+      var bobVy = -rodLength * Math.sin(S.th) * S.om;
+      var bobVx = S.v - rodLength * Math.cos(S.th) * S.om;
+      if (bobVy < 0) {
         var oldOm = S.om;
-        S.om *= -0.5;
-        S.v += oldOm * Math.sin(S.th) * (Mp / Mt) * 0.8;
-        if (Math.abs(oldOm) > 1) impactPulse = 1.0;
+        var oldBobVx = bobVx;
+        S.om *= -0.32;
+        S.v += (oldOm - S.om) * rodLength * Math.cos(S.th) * (Mp / Mt) * 0.22;
+        S.v += (oldBobVx - bobVx) * 0.04;
+        if (Math.abs(oldOm) > 0.8) impactPulse = 1.0;
       }
-      S.v *= 0.98;
-      S.om *= 0.99;
+      S.v *= 0.992;
+      S.om *= 0.985;
     }
   }
   simT += DT;
@@ -124,7 +131,7 @@ function animate(now) {
   var fmag = Math.abs(lastF);
   arrGrp.visible = !hasFallen && fmag > 0.3;
   if (!hasFallen && fmag > 0.3) {
-    var len = Math.min(0.55, fmag / 14);
+    var len = Math.min(0.55, fmag / (MAX_CTRL_FORCE * 0.7));
     var dir = Math.sign(lastF);
     arrShaft.scale.x = len;
     arrShaft.position.set(S.x + dir * len / 2, 0.04, 0);
@@ -162,7 +169,7 @@ function animate(now) {
   drawPlot('pA', hist.th, 'angle', 'deg', cc, -65, 65, 0);
   drawPlot('pO', hist.om, 'ang vel', 'deg/s', '#6b6860', -150, 150, 0);
   drawPlot('pX', hist.x, 'cart x', 'm', '#5b3a8a', -RAIL, RAIL, sp);
-  drawPlot('pF', hist.F, 'force', 'N', '#b85c00', -22, 22, 0);
+  drawPlot('pF', hist.F, 'force', 'N', '#b85c00', -(MAX_CTRL_FORCE + 2), MAX_CTRL_FORCE + 2, 0);
   drawPhase(phaseHist, cc);
   updateRight(lastF);
   document.getElementById('hT').textContent = 't = ' + simT.toFixed(2) + ' s';

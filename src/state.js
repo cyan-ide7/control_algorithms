@@ -3,6 +3,7 @@ var curCtrl = 'PID', params = {}, sp = 0, ctrlFn = null;
 var S = { th: 0.06, om: 0, x: 0, v: 0 };
 var kickF = 0, distOn = false, distStr = 3, bobPushF = 0;
 var manualX = 0, isManual = false;
+var MAX_CTRL_FORCE = 90;
 var simGaps = {
   quantize: false, delay: 0, noise: 0,
   stiction: 0, deadzone: 0, hz: 500,

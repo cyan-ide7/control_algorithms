@@ -8,7 +8,7 @@
 // That means the pendulum kinematics are:
 //   bob_x = cart_x - L * sin(theta)
 //   bob_y = pivot_y + L * cos(theta)
-var GG = 9.81, Mc = 0.57, Lp = 0.3302, bp = 0.0024, bc = 4.3, RAIL = 1.8;
+var GG = 9.81, Mc = 0.57, Lp = 0.3302, bp = 0.0014, bc = 0.9, RAIL = 1.8;
 var CART_WIDTH = 0.22;
 var RAIL_LIMIT = RAIL - (CART_WIDTH / 2);
 var Mp = 0.127;
