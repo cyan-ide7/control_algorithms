@@ -116,6 +116,7 @@ var pushIndicator = new THREE.Mesh(
 );
 scene.add(pushIndicator);
 var pushTimer = 0;
+var impactPulse = 0;
 
 // Trail
 var TLEN = 100;
@@ -125,5 +126,14 @@ var trailGeo = new THREE.BufferGeometry().setFromPoints(trailPts);
 var trailLine = new THREE.Line(trailGeo, new THREE.LineBasicMaterial({ color: 0xc0392b, transparent: true, opacity: 0.15 }));
 scene.add(trailLine);
 var tIdx = 0;
+
+// Manual target marker
+var manualMarker = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.002, 0.002, 0.2, 8),
+  new THREE.MeshLambertMaterial({ color: 0xe67e22, transparent: true, opacity: 0 })
+);
+manualMarker.rotation.x = Math.PI / 2;
+manualMarker.position.y = 0.04;
+scene.add(manualMarker);
 
 // ─────────────────────────────────────────────

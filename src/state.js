@@ -3,6 +3,14 @@
 var curCtrl = 'PID', params = {}, sp = 0, ctrlFn = null;
 var S = { th: 0.06, om: 0, x: 0, v: 0 };
 var kickF = 0, distOn = false, distStr = 3, bobPushF = 0;
+var manualX = 0, isManual = false;
+var simGaps = { 
+  quantize: false, delay: 0, noise: 0, 
+  stiction: 0, deadzone: 0, hz: 500,
+  backEMF: 0, wiring: 0
+};
+var fBuffer = [];
+var lastCtrlT = 0, lastFVal = 0;
 var simT = 0, lastWall = 0, fps = 60, fpsC = 0, fpsA = 0;
 var DT = 0.005, HIST = 160;
 var hist = { th: [], om: [], x: [], F: [] }, phaseHist = [], lastF = 0;
@@ -21,6 +29,8 @@ function makeCtrl() {
 function resetSim() {
   S = { th: 0.06 + (Math.random() - 0.5) * 0.02, om: 0, x: 0, v: 0 };
   kickF = 0; bobPushF = 0; simT = 0; lastF = 0; hasFallen = false;
+  fBuffer = [];
+  lastCtrlT = 0; lastFVal = 0;
   hist = { th: [], om: [], x: [], F: [] }; phaseHist = [];
   document.getElementById('failOverlay').style.display = 'none';
   if (floorMat) floorMat.color.setHex(0xe8e5dd);

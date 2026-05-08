@@ -92,6 +92,10 @@ input[type=checkbox]{accent-color:var(--text);cursor:pointer;}
 ::-webkit-scrollbar{width:4px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+#countOverlay{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(244,242,237,.6);z-index:15;flex-direction:column;pointer-events:none;}
+#countText{font-family:var(--mono);font-size:64px;font-weight:500;color:var(--text);margin-bottom:10px;}
+#countLabel{font-family:var(--mono);font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--text2);}
+
 @media(max-width:680px){
   #app{grid-template-columns:160px 1fr;grid-template-rows:36px 1fr 110px;grid-template-areas:"hdr hdr""left mid""left plots";}
   #right{display:none;}

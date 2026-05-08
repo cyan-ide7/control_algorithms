@@ -16,13 +16,40 @@ function animate(now) {
       if (distOn) dist = (Math.sin(simT * 1.9 + 1.1) * 0.55 + Math.cos(simT * 3.1) * 0.35) * distStr;
       if (kickF) { dist += kickF; kickF = 0; }
       if (bobPushF) { dist += bobPushF; bobPushF = 0; }
-      var F = clamp(ctrlFn(S, DT), -20, 20);
-      lastF = F;
-      S = rk4(S, F + dist, DT);
+
+      // 1. OBSERVE (Sim-to-Real gaps: noise and quantization)
+      var obs = { th: S.th, om: S.om, x: S.x, v: S.v };
+      if (simGaps.noise > 0) {
+        obs.th += (Math.random() - 0.5) * simGaps.noise * 0.017; // deg to rad
+        obs.x += (Math.random() - 0.5) * simGaps.noise * 0.005;
+      }
+      if (simGaps.quantize) {
+        var stepTh = 0.006, stepX = 0.001; // 1024 PPR approx 0.35 deg
+        obs.th = Math.round(obs.th / stepTh) * stepTh;
+        obs.x = Math.round(obs.x / stepX) * stepX;
+      }
+
+      // 2. COMPUTE (at fixed sampling frequency)
+      var F = lastFVal;
+      if (simT >= lastCtrlT + (1 / simGaps.hz)) {
+        F = clamp(ctrlFn(obs, DT), -20, 20);
+        // Dead-zone
+        if (Math.abs(F) < simGaps.deadzone) F = 0;
+        lastFVal = F;
+        lastCtrlT = simT;
+      }
+      
+      // 3. DELAY (Transport delay)
+      fBuffer.push(F);
+      while (fBuffer.length > simGaps.delay + 1) fBuffer.shift();
+      var appliedF = fBuffer[0] || 0;
+
+      lastF = appliedF;
+      S = rk4(S, appliedF + dist, DT);
       simT += DT;
       hist.th.push(S.th * 180 / Math.PI);
       hist.om.push(S.om * 180 / Math.PI);
-      hist.x.push(S.x); hist.F.push(F);
+      hist.x.push(S.x); hist.F.push(appliedF);
       phaseHist.push([S.th, S.om]);
       if (hist.th.length > HIST) { hist.th.shift(); hist.om.shift(); hist.x.shift(); hist.F.shift(); }
       if (phaseHist.length > HIST) phaseHist.shift();
@@ -31,9 +58,20 @@ function animate(now) {
       // Free fall under gravity, bounce off floor
       S = rk4(S, 0, DT);
       var bobY = 0.08 + Lp * 2 * Math.cos(S.th);
-      if (bobY < bobRadius + 0.005) {
-        var thLim = Math.acos(clamp((0.08 - bobRadius - 0.005) / (Lp * 2), -1, 1));
-        if (Math.abs(S.th) > thLim) { S.th = Math.sign(S.th) * thLim; S.om *= -0.25; }
+      var groundY = bobRadius + 0.002;
+      if (bobY < groundY) {
+        var thLim = Math.acos(clamp((0.08 - groundY) / (Lp * 2), -1, 1));
+        if (Math.abs(S.th) > thLim) {
+          S.th = Math.sign(S.th) * thLim;
+          var isFallingDown = (S.th > 0 && S.om > 0) || (S.th < 0 && S.om < 0);
+          if (isFallingDown) {
+            var oldOm = S.om;
+            S.om *= -0.5;
+            S.v += oldOm * Math.sin(S.th) * (Mp / Mt) * 0.8;
+            if (Math.abs(oldOm) > 1) impactPulse = 1.0;
+          }
+          S.v *= 0.98; S.om *= 0.99;
+        }
       }
       simT += DT;
     }
@@ -48,6 +86,14 @@ function animate(now) {
   // 3D positions
   cartGrp.position.x = S.x;
   pendGrp.rotation.z = S.th;
+
+  // Manual marker
+  if (curCtrl === 'Manual') {
+    manualMarker.position.x = manualX;
+    manualMarker.material.opacity = 0.5;
+  } else {
+    manualMarker.material.opacity = 0;
+  }
 
   // Force arrow
   var fmag = Math.abs(lastF);
@@ -69,7 +115,10 @@ function animate(now) {
 
   if (hasFallen) {
     fallDisc.position.set(bobWP.x, 0.002, bobWP.z);
-    fallDisc.material.opacity = 0.45;
+    impactPulse = Math.max(0, impactPulse - wall * 2);
+    var s = 1 + impactPulse * 0.5;
+    fallDisc.scale.set(s, s, s);
+    fallDisc.material.opacity = 0.3 + impactPulse * 0.4;
     floorMat.color.setHex(0xd8c8c0);
   }
 

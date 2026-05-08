@@ -8,9 +8,48 @@ function renderCtrlBtns() {
     btn.className = 'cbtn' + (k === curCtrl ? ' active' : '');
     var dot = document.createElement('span'); dot.className = 'cdot'; dot.style.background = c.hex;
     btn.appendChild(dot); btn.appendChild(document.createTextNode(c.label));
-    btn.onclick = function() { curCtrl = k; ctrlFn = makeCtrl(); renderCtrlBtns(); renderGains(); document.getElementById('cInfo').textContent = c.info; };
+    btn.onclick = function() { 
+      if (k === 'Manual' && curCtrl !== 'Manual') {
+        startManualCountdown();
+        return;
+      }
+      curCtrl = k; 
+      if (k === 'Manual') manualX = S.x;
+      ctrlFn = makeCtrl(); 
+      renderCtrlBtns(); 
+      renderGains(); 
+      document.getElementById('cInfo').textContent = c.info; 
+    };
     cont.appendChild(btn);
   });
+}
+
+var countdownActive = false;
+function startManualCountdown() {
+  if (countdownActive) return;
+  countdownActive = true;
+  var overlay = document.getElementById('countOverlay');
+  var text = document.getElementById('countText');
+  overlay.style.display = 'flex';
+  var count = 3;
+  text.textContent = count;
+  
+  var interval = setInterval(function() {
+    count--;
+    if (count > 0) {
+      text.textContent = count;
+    } else {
+      clearInterval(interval);
+      overlay.style.display = 'none';
+      countdownActive = false;
+      curCtrl = 'Manual';
+      manualX = S.x;
+      ctrlFn = makeCtrl();
+      renderCtrlBtns();
+      renderGains();
+      document.getElementById('cInfo').textContent = CTRLS['Manual'].info;
+    }
+  }, 1000);
 }
 
 function renderGains() {

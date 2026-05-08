@@ -34,6 +34,21 @@ window.addEventListener('mouseup', function(e) {
   drag = false;
 });
 window.addEventListener('mousemove', function(e) {
+  var rect = canvas3d.getBoundingClientRect();
+  mouse2.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse2.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+  if (curCtrl === 'Manual') {
+    ray.setFromCamera(mouse2, cam);
+    // Intersection with plane Y = 0.04 (track level)
+    var normal = new THREE.Vector3(0, 1, 0);
+    var plane = new THREE.Plane(normal, -0.04);
+    var point = new THREE.Vector3();
+    if (ray.ray.intersectPlane(plane, point)) {
+      manualX = clamp(point.x, -RAIL_LIMIT, RAIL_LIMIT);
+    }
+  }
+
   if (!drag) return;
   var dx = e.clientX - mx0, dy = e.clientY - my0;
   if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragged = true;

@@ -1,111 +1,164 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inverted Pendulum - Control Lab</title>
-<link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inverted Pendulum</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
-<div id="app">
+  <div id="app">
 
-<header id="hdr">
-  <div class="htitle"><div id="dot"></div>Inverted Pendulum - Control Lab</div>
-  <div class="hmeta">
-    <span id="hT">t = 0.00 s</span>
-    <span id="hA">theta = 0.0 deg</span>
-    <span id="hF">-- fps</span>
-    <span style="color:#555;">drag / scroll / click bob</span>
-  </div>
-</header>
-
-<aside id="left">
-  <div class="ps"><div class="pl">Controller</div><div id="cBtns"></div></div>
-  <div class="ps"><div class="pl">Gains</div><div id="gPanel"></div></div>
-  <div class="ps">
-    <div class="pl">Disturbance</div>
-    <label class="ck"><input type="checkbox" id="dChk"> Continuous wind</label>
-    <div class="gr">
-      <div class="gm"><span class="gn">strength</span><span class="gv" id="dStrV">3.0 N</span></div>
-      <input type="range" id="dStr" min="0" max="15" step="0.5" value="3">
-    </div>
-    <button class="btn danger" id="kick">Cart impulse</button>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px;">Click the red bob in 3D to push it</div>
-  </div>
-  <div class="ps">
-    <div class="pl">Cart setpoint</div>
-    <div class="gr">
-      <div class="gm"><span class="gn">x target</span><span class="gv" id="spV">0.00 m</span></div>
-      <input type="range" id="spSlider" min="-1.5" max="1.5" step="0.05" value="0">
-    </div>
-  </div>
-  <div class="ps">
-    <div class="pl">Pendulum mass</div>
-    <div class="gr">
-      <div class="gm"><span class="gn">ball mass</span><span class="gv" id="mpV">0.127 kg</span></div>
-      <input type="range" id="mpSlider" min="0.02" max="0.60" step="0.005" value="0.127">
-    </div>
-    <div style="font-family:var(--mono);font-size:9px;color:var(--text3);">heavier -> slower natural freq.</div>
-  </div>
-  <div class="ps">
-    <button class="btn" onclick="resetSim()">Reset</button>
-    <button class="btn" id="mathBtn">Stability math</button>
-  </div>
-  <div class="ps" style="border-bottom:none;flex:1;">
-    <div class="pl">About</div>
-    <div id="cInfo"></div>
-  </div>
-</aside>
-
-<main id="mid">
-  <canvas id="c3d"></canvas>
-  <div id="failOverlay">
-    <div id="failBox">
-      <h3>Pendulum fell</h3>
-      <p id="failReason"></p>
-      <div class="fblock" id="failGains"></div>
-      <p style="font-size:10px;color:var(--text3);margin-bottom:5px;">
-        Suggested minimum stable gains for mp = <span id="failMp">-</span> kg:
-      </p>
-      <div class="fblock" id="suggestGains"></div>
-      <button class="btn ok" onclick="applyRecommended()">Apply gains &amp; restart</button>
-      <button class="btn" onclick="resetSim()" style="margin-top:3px;">Restart with current gains</button>
-    </div>
-  </div>
-  <div id="clickHint">drag to orbit / scroll to zoom / click bob to push</div>
-</main>
-
-<section id="plots">
-  <div class="pw"><canvas id="pA"></canvas></div>
-  <div class="pw"><canvas id="pO"></canvas></div>
-  <div class="pw"><canvas id="pX"></canvas></div>
-  <div class="pw"><canvas id="pF"></canvas></div>
-</section>
-
-<aside id="right">
-  <div id="statusBig">-</div>
-  <div class="ps"><div class="pl">State vector</div><div id="sPanel"></div></div>
-  <div class="ps"><div class="pl">Performance</div><div id="perfPanel"></div></div>
-  <div id="phasewrap">
-    <div class="pl" style="margin-bottom:4px;">Phase plane theta-omega</div>
-    <canvas id="pPh" height="88" style="width:100%;display:block;"></canvas>
-  </div>
-</aside>
-</div>
-
-<!-- MATH MODAL -->
-<div id="mathModal">
-  <div id="mathBox">
-    <header>
-      <span>Stability Mathematics</span>
-      <button id="mathClose" onclick="closeMath()">close</button>
+    <header id="hdr">
+      <div class="htitle">
+        <div id="dot"></div>Inverted Pendulum
+      </div>
+      <div class="hmeta">
+        <span id="hT">t = 0.00 s</span>
+        <span id="hA">theta = 0.0 deg</span>
+        <span id="hF">-- fps</span>
+        <span style="color:#555;">drag / scroll / click bob</span>
+      </div>
     </header>
-    <div id="mathTabs"></div>
-    <div id="mathBody"></div>
-  </div>
-</div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <aside id="left">
+      <div class="ps">
+        <div class="pl">Controller</div>
+        <div id="cBtns"></div>
+      </div>
+      <div class="ps">
+        <div class="pl">Gains</div>
+        <div id="gPanel"></div>
+      </div>
+      <div class="ps">
+        <div class="pl">Disturbance</div>
+        <label class="ck"><input type="checkbox" id="dChk"> Continuous wind</label>
+        <div class="gr">
+          <div class="gm"><span class="gn">strength</span><span class="gv" id="dStrV">3.0 N</span></div>
+          <input type="range" id="dStr" min="0" max="15" step="0.5" value="3">
+        </div>
+        <button class="btn danger" id="kick">Cart impulse</button>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px;">Click the red bob in 3D to
+          push it</div>
+      </div>
+      <div class="ps">
+        <div class="pl">Cart setpoint</div>
+        <div class="gr">
+          <div class="gm"><span class="gn">x target</span><span class="gv" id="spV">0.00 m</span></div>
+          <input type="range" id="spSlider" min="-1.5" max="1.5" step="0.05" value="0">
+        </div>
+      </div>
+      <div class="ps">
+        <div class="pl">Pendulum mass</div>
+        <div class="gr">
+          <div class="gm"><span class="gn">ball mass</span><span class="gv" id="mpV">0.127 kg</span></div>
+          <input type="range" id="mpSlider" min="0.02" max="0.60" step="0.005" value="0.127">
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);">heavier -> slower natural freq.</div>
+      </div>
+      <div class="ps">
+        <div class="pl">Sim-to-Real Gaps</div>
+        <label class="ck"><input type="checkbox" id="gQuant"> Encoder quantization</label>
+        <div class="gr">
+          <div class="gm"><span class="gn">noise (jitter)</span><span class="gv" id="gNoiseV">0.0</span></div>
+          <input type="range" id="gNoise" min="0" max="5" step="0.1" value="0">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">delay (latency)</span><span class="gv" id="gDelayV">0 ms</span></div>
+          <input type="range" id="gDelay" min="0" max="20" step="1" value="0">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">stiction (friction)</span><span class="gv" id="gSticV">0.0 N</span></div>
+          <input type="range" id="gStic" min="0" max="5" step="0.1" value="0">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">dead-zone</span><span class="gv" id="gDeadV">0.0 N</span></div>
+          <input type="range" id="gDead" min="0" max="3" step="0.1" value="0">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">ctrl freq</span><span class="gv" id="gHzV">500 Hz</span></div>
+          <input type="range" id="gHz" min="50" max="1000" step="50" value="500">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">back-EMF</span><span class="gv" id="gEmfV">0.0</span></div>
+          <input type="range" id="gEmf" min="0" max="5" step="0.1" value="0">
+        </div>
+        <div class="gr">
+          <div class="gm"><span class="gn">wiring spring</span><span class="gv" id="gWireV">0.0</span></div>
+          <input type="range" id="gWire" min="0" max="5" step="0.1" value="0">
+        </div>
+      </div>
+      <div class="ps">
+        <button class="btn" onclick="resetSim()">Reset</button>
+        <button class="btn" id="mathBtn">Stability math</button>
+      </div>
+      <div class="ps" style="border-bottom:none;flex:1;">
+        <div class="pl">About</div>
+        <div id="cInfo"></div>
+      </div>
+    </aside>
+
+    <main id="mid">
+      <canvas id="c3d"></canvas>
+      <div id="failOverlay">
+        <div id="failBox">
+          <h3>Pendulum fell</h3>
+          <p id="failReason"></p>
+          <div class="fblock" id="failGains"></div>
+          <p style="font-size:10px;color:var(--text3);margin-bottom:5px;">
+            Suggested minimum stable gains for mp = <span id="failMp">-</span> kg:
+          </p>
+          <div class="fblock" id="suggestGains"></div>
+          <button class="btn ok" onclick="applyRecommended()">Apply gains &amp; restart</button>
+          <button class="btn" onclick="resetSim()" style="margin-top:3px;">Restart with current gains</button>
+        </div>
+      </div>
+      <div id="countOverlay">
+        <div id="countText">3</div>
+        <div id="countLabel">Manual control starting</div>
+      </div>
+      <div id="clickHint">drag to orbit / scroll to zoom / click bob to push / select "Manual" to balance yourself</div>
+    </main>
+
+    <section id="plots">
+      <div class="pw"><canvas id="pA"></canvas></div>
+      <div class="pw"><canvas id="pO"></canvas></div>
+      <div class="pw"><canvas id="pX"></canvas></div>
+      <div class="pw"><canvas id="pF"></canvas></div>
+    </section>
+
+    <aside id="right">
+      <div id="statusBig">-</div>
+      <div class="ps">
+        <div class="pl">State vector</div>
+        <div id="sPanel"></div>
+      </div>
+      <div class="ps">
+        <div class="pl">Performance</div>
+        <div id="perfPanel"></div>
+      </div>
+      <div id="phasewrap">
+        <div class="pl" style="margin-bottom:4px;">Phase plane theta-omega</div>
+        <canvas id="pPh" height="88" style="width:100%;display:block;"></canvas>
+      </div>
+    </aside>
+  </div>
+
+  <!-- MATH MODAL -->
+  <div id="mathModal">
+    <div id="mathBox">
+      <header>
+        <span>Stability Mathematics</span>
+        <button id="mathClose" onclick="closeMath()">close</button>
+      </header>
+      <div id="mathTabs"></div>
+      <div id="mathBody"></div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="src/physics.js"></script>
   <script src="src/controllers.js"></script>
   <script src="src/state.js"></script>
@@ -118,4 +171,5 @@
   <script src="src/loop.js"></script>
   <script src="src/events.js"></script>
 </body>
+
 </html>

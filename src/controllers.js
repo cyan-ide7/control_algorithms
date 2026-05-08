@@ -67,6 +67,24 @@ var CTRLS = {
     info: 'Gain-scheduling via fuzzy membership functions on |theta|. Small angles use lower gains, larger angles use higher gains. No explicit model required.',
     params: [{ id: 'fs', l: 'Scale', min: 0.5, max: 2, s: 0.05, v: 1 }, { id: 'fKx', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }, { id: 'fKv', l: 'Kv (vel)', min: 2, max: 20, s: 0.5, v: 8 }],
     make: function(p, sp) { return function(s, dt) { var a = Math.abs(s.th); var Kp = a < 0.05 ? 60 : a < 0.12 ? 63 : 67; var Kd = a < 0.05 ? 16 : a < 0.12 ? 17 : 18; return clamp(p.fs * (Kp * s.th + Kd * s.om) + p.fKx * (s.x - sp) + p.fKv * s.v, -20, 20); }; }
+  },
+  Manual: {
+    label: 'Manual (Mouse)', hex: '#e67e22',
+    info: 'Control the cart directly with your mouse. Move your cursor over the track to shift the cart. You must balance the pendulum yourself!',
+    params: [{ id: 'stiff', l: 'Response', min: 5, max: 50, s: 1, v: 25 }],
+    make: function(p, sp) { 
+      return function(s, dt) { 
+        var err = manualX - s.x;
+        var f = p.stiff * 8 * err - 12 * s.v;
+        return clamp(f, -30, 30);
+      }; 
+    }
+  },
+  None: {
+    label: 'None (Passive)', hex: '#777',
+    info: 'Passive physics. No control force is applied. Observe the natural damping, gravity, and cart-pendulum momentum exchange.',
+    params: [],
+    make: function(p, sp) { return function(s, dt) { return 0; }; }
   }
 };
 
