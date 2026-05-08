@@ -1,45 +1,88 @@
 // PHYSICS  (Lagrangian RK4, Quanser scale)
-// ─────────────────────────────────────────────
+//
+// Sign convention used by the renderer:
+// - x increases to the right
+// - theta = 0 is upright
+// - positive theta means the bob leans to the left
+//
+// That means the pendulum kinematics are:
+//   bob_x = cart_x - L * sin(theta)
+//   bob_y = pivot_y + L * cos(theta)
 var GG = 9.81, Mc = 0.57, Lp = 0.3302, bp = 0.0024, bc = 4.3, RAIL = 1.8;
 var CART_WIDTH = 0.22;
 var RAIL_LIMIT = RAIL - (CART_WIDTH / 2);
 var Mp = 0.127;
 var Mt, Ip;
-function rephy() { Mt = Mc + Mp; Ip = Mp * Lp * Lp * 1.333; }
+
+function rephy() {
+  Mt = Mc + Mp;
+  // Effective upright inertia about the pivot.
+  Ip = Mp * Lp * Lp * 1.333;
+}
 rephy();
 
-function phyDen(th) {
-  var c = Math.cos(th);
-  // Correct determinant D = (Mc+Mp)*Ip - (Mp*Lp*cos(th))^2
-  return Mt * Ip - Mp * Mp * Lp * Lp * c * c;
+function pendulumCartesian(s, pivotX, pivotY, rodLength) {
+  var L = rodLength == null ? Lp * 2 : rodLength;
+  return {
+    x: pivotX - L * Math.sin(s.th),
+    y: pivotY + L * Math.cos(s.th)
+  };
 }
-function phyDeriv(s, F) {
-  var th = s.th, om = s.om, x = s.x, v = s.v;
-  var sth = Math.sin(th), cth = Math.cos(th), D = phyDen(th);
-  
-  // 1. Back-EMF effect
-  if (simGaps.backEMF > 0) F -= v * simGaps.backEMF * 0.5;
 
-  // 2. Stiction and Friction
-  var totalF = F - bc * v + Mp * Lp * om * om * sth;
-  if (Math.abs(v) < 0.001 && Math.abs(totalF) < simGaps.stiction) {
-    totalF = 0;
-  } else if (simGaps.stiction > 0) {
-    totalF -= Math.sign(totalF) * simGaps.stiction * 0.2;
+function phyDen(th) {
+  var coupling = Mp * Lp * Math.cos(th);
+  return Mt * Ip - coupling * coupling;
+}
+
+function phyAppliedForce(s, F) {
+  var motorF = F;
+  var sth = Math.sin(s.th);
+  var railF = 0;
+
+  if (simGaps.backEMF > 0) motorF -= s.v * simGaps.backEMF * 0.5;
+
+  if (s.x > RAIL_LIMIT) railF += -800 * (s.x - RAIL_LIMIT) - 40 * s.v;
+  if (s.x < -RAIL_LIMIT) railF += -800 * (s.x + RAIL_LIMIT) - 40 * s.v;
+
+  // Because positive theta means "lean left", the pendulum reaction on the
+  // cart enters with a negative Coriolis term here.
+  var netF = motorF - bc * s.v + railF - Mp * Lp * s.om * s.om * sth;
+  if (Math.abs(s.v) < 0.001 && Math.abs(netF) < simGaps.stiction) {
+    netF = 0;
+  } else if (simGaps.stiction > 0 && netF !== 0) {
+    netF -= Math.sign(netF) * simGaps.stiction * 0.2;
   }
 
-  // 3. Rail bumpers (High-stiffness spring-damper)
-  if (x > RAIL_LIMIT) totalF += -800 * (x - RAIL_LIMIT) - 40 * v;
-  if (x < -RAIL_LIMIT) totalF += -800 * (x + RAIL_LIMIT) - 40 * v;
-
-  // 4. Wiring Spring
-  var wiringTorque = -th * simGaps.wiring * 0.05;
-
-  var dom = (Mt * Mp * Lp * GG * sth - Mp * Lp * cth * totalF - (bp * Mt * om) + wiringTorque * Mt) / D;
-  var dv  = (Ip * totalF - Mp * Mp * Lp * Lp * GG * sth * cth + (bp + wiringTorque) * Mp * Lp * cth * om) / D;
-  
-  return { th: om, om: dom, x: v, v: dv };
+  return netF;
 }
+
+function phyAppliedTorque(s) {
+  var gravityTorque = Mp * GG * Lp * Math.sin(s.th);
+  var dampingTorque = -bp * s.om;
+  var wiringTorque = -simGaps.wiring * 0.05 * s.th;
+  return gravityTorque + dampingTorque + wiringTorque;
+}
+
+function phyDeriv(s, F) {
+  var coupling = Mp * Lp * Math.cos(s.th);
+  var D = phyDen(s.th);
+  var rhsForce = phyAppliedForce(s, F);
+  var rhsTorque = phyAppliedTorque(s);
+
+  if (Math.abs(D) < 1e-6) D = D < 0 ? -1e-6 : 1e-6;
+
+  // With the left-positive angle convention, the coupled equations are:
+  // [ Mt      -mLcos ] [xdd] = [cart force]
+  // [ -mLcos   Ip    ] [tdd]   [pend torque]
+  //
+  // This gives the expected behavior:
+  // push cart right  => theta_dd > 0 => bob initially rotates left
+  var dv = (Ip * rhsForce + coupling * rhsTorque) / D;
+  var dom = (Mt * rhsTorque + coupling * rhsForce) / D;
+
+  return { th: s.om, om: dom, x: s.v, v: dv };
+}
+
 function rk4(s, F, dt) {
   var k1 = phyDeriv(s, F);
   var s2 = { th: s.th + k1.th * dt / 2, om: s.om + k1.om * dt / 2, x: s.x + k1.x * dt / 2, v: s.v + k1.v * dt / 2 };
@@ -52,21 +95,20 @@ function rk4(s, F, dt) {
   return {
     th: s.th + dt / 6 * (k1.th + 2 * k2.th + 2 * k3.th + k4.th),
     om: s.om + dt / 6 * (k1.om + 2 * k2.om + 2 * k3.om + k4.om),
-    x:  s.x + dt / 6 * (k1.x + 2 * k2.x + 2 * k3.x + k4.x),
-    v:  s.v + dt / 6 * (k1.v + 2 * k2.v + 2 * k3.v + k4.v)
+    x: s.x + dt / 6 * (k1.x + 2 * k2.x + 2 * k3.x + k4.x),
+    v: s.v + dt / 6 * (k1.v + 2 * k2.v + 2 * k3.v + k4.v)
   };
 }
+
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 function recGains() {
   var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
   return {
     Kp: Math.max(30, Math.ceil(Mt * Lp * wn * wn * 2.2)),
-    Kd: Math.max(8,  Math.ceil(Mt * Lp * wn * 1.4)),
+    Kd: Math.max(8, Math.ceil(Mt * Lp * wn * 1.4)),
     Ki: 1,
-    Kx: Math.max(3,  Math.ceil(wn * 0.8)),
-    Kv: Math.max(5,  Math.ceil(wn * 1.2))
+    Kx: Math.max(3, Math.ceil(wn * 0.8)),
+    Kv: Math.max(5, Math.ceil(wn * 1.2))
   };
 }
-
-// ─────────────────────────────────────────────

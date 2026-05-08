@@ -1,11 +1,10 @@
 // SIM STATE
-// ─────────────────────────────────────────────
 var curCtrl = 'PID', params = {}, sp = 0, ctrlFn = null;
 var S = { th: 0.06, om: 0, x: 0, v: 0 };
 var kickF = 0, distOn = false, distStr = 3, bobPushF = 0;
 var manualX = 0, isManual = false;
-var simGaps = { 
-  quantize: false, delay: 0, noise: 0, 
+var simGaps = {
+  quantize: false, delay: 0, noise: 0,
   stiction: 0, deadzone: 0, hz: 500,
   backEMF: 0, wiring: 0
 };
@@ -20,23 +19,41 @@ var bobRadius = 0.028;
 // THREE.JS objects declared here so resetSim can access them
 var floorMat, fallDisc;
 
+function createStateVector(th, om, x, v) {
+  return { th: th, om: om, x: x, v: v };
+}
+
+function initialStateVector() {
+  return createStateVector(0.06 + (Math.random() - 0.5) * 0.02, 0, 0, 0);
+}
+
+function copyStateVector(s) {
+  return createStateVector(s.th, s.om, s.x, s.v);
+}
+
 function makeCtrl() {
-  var c = CTRLS[curCtrl]; params = {};
+  var c = CTRLS[curCtrl];
+  params = {};
   c.params.forEach(function(p) { params[p.id] = p.v; });
   return c.make(params, sp);
 }
 
 function resetSim() {
-  S = { th: 0.06 + (Math.random() - 0.5) * 0.02, om: 0, x: 0, v: 0 };
-  kickF = 0; bobPushF = 0; simT = 0; lastF = 0; hasFallen = false;
+  S = initialStateVector();
+  kickF = 0;
+  bobPushF = 0;
+  simT = 0;
+  lastF = 0;
+  hasFallen = false;
   fBuffer = [];
-  lastCtrlT = 0; lastFVal = 0;
-  hist = { th: [], om: [], x: [], F: [] }; phaseHist = [];
+  lastCtrlT = 0;
+  lastFVal = 0;
+  hist = { th: [], om: [], x: [], F: [] };
+  phaseHist = [];
   document.getElementById('failOverlay').style.display = 'none';
   if (floorMat) floorMat.color.setHex(0xe8e5dd);
   if (fallDisc) fallDisc.material.opacity = 0;
   ctrlFn = makeCtrl();
 }
-ctrlFn = makeCtrl();
 
-// ─────────────────────────────────────────────
+ctrlFn = makeCtrl();

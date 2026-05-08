@@ -18,7 +18,7 @@ function renderCtrlBtns() {
       ctrlFn = makeCtrl(); 
       renderCtrlBtns(); 
       renderGains(); 
-      document.getElementById('cInfo').textContent = c.info; 
+      document.getElementById('ctrlInfo').textContent = c.info; 
     };
     cont.appendChild(btn);
   });
@@ -47,10 +47,15 @@ function startManualCountdown() {
       ctrlFn = makeCtrl();
       renderCtrlBtns();
       renderGains();
-      document.getElementById('cInfo').textContent = CTRLS['Manual'].info;
+      document.getElementById('ctrlInfo').textContent = CTRLS['Manual'].info;
     }
   }, 1000);
 }
+
+// Initial info
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('ctrlInfo').textContent = CTRLS[curCtrl].info;
+});
 
 function renderGains() {
   var cont = document.getElementById('gPanel'); cont.innerHTML = '';

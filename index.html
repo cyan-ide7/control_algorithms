@@ -96,7 +96,15 @@
       </div>
       <div class="ps" style="border-bottom:none;flex:1;">
         <div class="pl">About</div>
-        <div id="cInfo"></div>
+        <div id="cInfo">
+          <div style="font-weight:600;margin-bottom:6px;color:var(--text1);">The Inverted Pendulum Lesson</div>
+          <div style="font-size:11px;line-height:1.4;">
+            <p style="margin-bottom:6px;"><b>1. Inertia (Lagging):</b> When the cart accelerates right, the bob lags behind, appearing to tilt left from the cart's frame.</p>
+            <p style="margin-bottom:6px;"><b>2. Correction:</b> To balance, the cart must move in the <i>same</i> direction the ball is falling to "catch" it.</p>
+            <p style="margin-bottom:6px;"><b>3. PID Control:</b> <i>Proportional</i> reacts to tilt; <i>Derivative</i> acts as a brake to prevent high-speed overshoot.</p>
+          </div>
+          <div id="ctrlInfo" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);color:var(--text2);font-style:italic;font-size:10px;"></div>
+        </div>
       </div>
     </aside>
 
