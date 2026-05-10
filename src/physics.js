@@ -44,13 +44,11 @@ function phyAppliedForce(s, F) {
   if (s.x > RAIL_LIMIT) railF += -800 * (s.x - RAIL_LIMIT) - 40 * s.v;
   if (s.x < -RAIL_LIMIT) railF += -800 * (s.x + RAIL_LIMIT) - 40 * s.v;
 
-  // Because positive theta means "lean left", the pendulum reaction on the
-  // cart enters with a negative Coriolis term here.
   var netF = motorF - bc * s.v + railF - Mp * Lp * s.om * s.om * sth;
-  if (Math.abs(s.v) < 0.001 && Math.abs(netF) < simGaps.stiction) {
-    netF = 0;
-  } else if (simGaps.stiction > 0 && netF !== 0) {
-    netF -= Math.sign(netF) * simGaps.stiction * 0.2;
+  
+  // Kinetic friction ALWAYS opposes velocity, not the applied force
+  if (Math.abs(s.v) >= 0.001 && simGaps.stiction > 0) {
+    netF -= Math.sign(s.v) * simGaps.stiction * 0.2;
   }
 
   return netF;
@@ -71,14 +69,21 @@ function phyDeriv(s, F) {
 
   if (Math.abs(D) < 1e-6) D = D < 0 ? -1e-6 : 1e-6;
 
-  // With the left-positive angle convention, the coupled equations are:
-  // [ Mt      -mLcos ] [xdd] = [cart force]
-  // [ -mLcos   Ip    ] [tdd]   [pend torque]
-  //
-  // This gives the expected behavior:
-  // push cart right  => theta_dd > 0 => bob initially rotates left
   var dv = (Ip * rhsForce + coupling * rhsTorque) / D;
   var dom = (Mt * rhsTorque + coupling * rhsForce) / D;
+
+  // STICTION FIX: Lock the cart if forces don't break static friction
+  if (Math.abs(s.v) < 0.001 && simGaps.stiction > 0) {
+    
+    // Calculate the total force trying to break the cart free.
+    // This includes the motor force AND the reactive pull from the leaning pendulum!
+    var apparentForce = rhsForce + (coupling * rhsTorque / Ip);
+    
+    if (Math.abs(apparentForce) < simGaps.stiction) {
+      dv = 0; // The cart is completely locked to the track
+      dom = rhsTorque / Ip; // The pendulum swings freely as if on a fixed hinge
+    }
+  }
 
   return { th: s.om, om: dom, x: s.v, v: dv };
 }

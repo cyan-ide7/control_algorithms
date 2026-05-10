@@ -50,8 +50,17 @@ var CTRLS = {
   LQR: {
     label: 'LQR', hex: '#1a4f7a',
     info: 'Linear-Quadratic Regulator via Riccati equation. Each slider is literally a K-matrix entry. Q penalises state error, R penalises control effort.',
-    params: [{ id: 'k1', l: 'K1 (theta)', min: 20, max: 150, s: 1, v: 60 }, { id: 'k2', l: 'K2 (omega)', min: 5, max: 50, s: 0.5, v: 16 }, { id: 'k3', l: 'K3 (x)', min: 0, max: 15, s: 0.5, v: 5 }, { id: 'k4', l: 'K4 (xdot)', min: 2, max: 25, s: 0.5, v: 8 }],
-    make: function (p, sp) { return function (s, dt) { return clamp(p.k1 * s.th + p.k2 * s.om - p.k3 * (s.x - sp) - p.k4 * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
+    params: [
+      { id: 'k1', l: 'K1 (theta)', min: -100, max: 100, s: 0.1, v: -27.66 },
+      { id: 'k2', l: 'K2 (omega)', min: -50, max: 50, s: 0.1, v: -4.59 },
+      { id: 'k3', l: 'K3 (x)', min: -20, max: 20, s: 0.1, v: 3.16 },
+      { id: 'k4', l: 'K4 (xdot)', min: -20, max: 20, s: 0.1, v: 3.80 }
+    ],
+    make: function (p, sp) {
+      return function (s, dt) {
+        return clamp(p.k1 * s.th + p.k2 * s.om - p.k3 * (s.x - sp) - p.k4 * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+      };
+    }
   },
   SMC: {
     label: 'SMC', hex: '#8a1a5a',
