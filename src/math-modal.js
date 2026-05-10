@@ -42,10 +42,9 @@ var MATH_CONTENT = {
     var rec = recGains();
     return '<h2>Minimum stable gains (Routh-Hurwitz)</h2>' +
       '<p>For F = Kp*theta + Kd*omega + Kx*x + Kv*xdot the closed-loop characteristic polynomial is 4th order. Necessary conditions:</p>' +
-      '<div class="eq">Kp > Mt*g/L  =  ' + (Mt * GG / Lp).toFixed(1) + '  N/rad   (minimum angle gain)\nKd > 0             (any positive damping stabilises)\nKx, Kv > 0         (needed for cart regulation)\n\nFor current Mp = ' + Mp.toFixed(3) + ' kg:\n  Kp_min  = ' + Math.ceil(Mt * GG / Lp) + '\n  Kp_rec  = ' + rec.Kp + '   (2.2x safety margin)\n  Kd_rec  = ' + rec.Kd + '</div>' +
+      '<div class="eq">Kp > Mt*g  =  ' + (Mt * GG).toFixed(1) + '  N/rad   (minimum angle gain)\nKd > 0             (any positive damping stabilises)\nKx, Kv > 0         (needed for cart regulation)\n\nFor current Mp = ' + Mp.toFixed(3) + ' kg:\n  Kp_min  = ' + Math.ceil(Mt * GG) + '\n  Kp_rec  = ' + rec.Kp + '\n  Kd_rec  = ' + rec.Kd + '</div>' +
       '<h2>Why gains scale with mass</h2>' +
-      '<p>Gravity torque = Mp*g*L*sin(theta). Heavier bob creates more torque. The minimum Kp grows as Mt*g/L, so doubling Mp raises Kp_min by roughly 20-30%.</p>' +
-      '<p class="note">This is why the fall overlay auto-computes new gains based on current Mp.</p>';
+      '<p>Gravity torque = Mp*g*L*sin(theta). Heavier bob creates more torque. The required restoring force scales directly with Total Mass (Mt * g).</p>';
   },
   lqr: function() {
     return '<h2>Linear-Quadratic Regulator</h2>' +
@@ -93,14 +92,18 @@ function calcRig() {
   var L_  = parseFloat(document.getElementById('ic_L').value)  || 0.33;
   var bc_ = parseFloat(document.getElementById('ic_bc').value) || 4.3;
   var Fm_ = parseFloat(document.getElementById('ic_Fmax').value) || 20;
+  
   var Mt_ = Mc_ + Mp_;
   var wn = Math.sqrt(GG / L_ * Mt_ / (Mt_ - Mp_ + 0.001));
-  var Kpmin = Math.ceil(Mt_ * GG / L_);
+  
+  var Kpmin = Math.ceil(Mt_ * GG); 
   var Kprec = Math.ceil(Mt_ * L_ * wn * wn * 2.2);
   var Kdrec = Math.ceil(Mt_ * L_ * wn * 1.4);
   var Kxrec = Math.ceil(wn * 0.8);
   var Kvrec = Math.ceil(wn * 1.2);
-  var maxAng = Math.asin(Math.min(1, Fm_ / (Mt_ * wn * wn * L_))) * 180 / Math.PI;
+  
+  var maxAng = Math.asin(Math.min(1, Fm_ / (Mt_ * GG))) * 180 / Math.PI;
+  
   var div = document.getElementById('ic_result'); div.style.display = 'block';
   div.innerHTML =
     '<div class="ro">Natural frequency:  wn = ' + wn.toFixed(3) + ' rad/s  (' + (wn / 2 / Math.PI).toFixed(2) + ' Hz)</div>' +

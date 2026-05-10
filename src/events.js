@@ -59,3 +59,53 @@ renderGains();
 document.getElementById('cInfo').textContent = CTRLS[curCtrl].info;
 lastWall = performance.now();
 requestAnimationFrame(animate);
+
+// Setup Resizers
+(function() {
+  const root = document.documentElement;
+
+  function makeResizable(handlerId, isVertical, varName, isReverse) {
+    const handler = document.getElementById(handlerId);
+    if (!handler) return;
+    
+    let isDragging = false;
+    
+    handler.addEventListener('mousedown', function(e) {
+      isDragging = true;
+      document.body.style.cursor = isVertical ? 'col-resize' : 'row-resize';
+      document.body.style.userSelect = 'none'; // Prevent text highlighting while dragging
+      e.preventDefault(); 
+    });
+    
+    window.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      
+      if (isVertical) {
+        // If it's the right panel (isReverse), width is window width minus mouse position
+        let newWidth = isReverse ? window.innerWidth - e.clientX : e.clientX;
+        // Clamp the width so it doesn't break the layout (min 150px, max 400px)
+        newWidth = Math.max(150, Math.min(newWidth, 400)); 
+        root.style.setProperty(varName, newWidth + 'px');
+      } else {
+        // Horizontal (Plots panel at the bottom)
+        let newHeight = window.innerHeight - e.clientY;
+        // Clamp height (min 80px, max half the screen)
+        newHeight = Math.max(80, Math.min(newHeight, window.innerHeight * 0.5));
+        root.style.setProperty(varName, newHeight + 'px');
+      }
+    });
+    
+    window.addEventListener('mouseup', function() {
+      if (isDragging) {
+        isDragging = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    });
+  }
+
+  // Bind the three handlers
+  makeResizable('drag-left', true, '--left-w', false);
+  makeResizable('drag-right', true, '--right-w', true);
+  makeResizable('drag-plots', false, '--plots-h', false);
+})();

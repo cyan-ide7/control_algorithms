@@ -9,19 +9,15 @@
 }
 
 :root {
-  --bg: #f4f2ed;
-  --bg2: #eceae4;
-  --bg3: #e2dfd8;
-  --border: #ccc9c0;
-  --text: #1a1814;
-  --text2: #6b6860;
-  --text3: #9e9b93;
-  --red: #c0392b;
-  --blue: #1a4f7a;
-  --green: #2a6b3c;
-  --orange: #b85c00;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+  --bg: #f4f2ed; --bg2: #eceae4; --bg3: #e2dfd8;
+  --border: #ccc9c0; --text: #1a1814; --text2: #6b6860; --text3: #9e9b93;
+  --red: #c0392b; --blue: #1a4f7a; --green: #2a6b3c; --orange: #b85c00;
+  --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+  
+  /* ADD THESE: Default sizes for your panels */
+  --left-w: 196px;
+  --right-w: 136px;
+  --plots-h: 128px;
 }
 
 html,
@@ -36,17 +32,11 @@ body {
 }
 
 #app {
-  width: 100%;
-  /* Changed from 100vw */
-  height: 100%;
-  /* Changed from 100vh */
-  display: grid;
-  grid-template-columns: 196px 1fr 136px;
-  grid-template-rows: 36px 1fr 128px;
-  grid-template-areas:
-    "hdr hdr hdr"
-    "left mid right"
-    "left plots right";
+  width: 100%; height: 100%; display: grid;
+  /* UPDATE THESE to use the variables */
+  grid-template-columns: var(--left-w) 1fr var(--right-w);
+  grid-template-rows: 36px 1fr var(--plots-h);
+  grid-template-areas: "hdr hdr hdr" "left mid right" "left plots right";
 }
 
 #hdr {
@@ -97,6 +87,7 @@ body {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 
 .ps {
@@ -360,6 +351,7 @@ input[type=checkbox] {
   border-top: 1px solid var(--border);
   display: grid;
   grid-template-columns: repeat(4, 1fr);
+  position: relative;
 }
 
 .pw {
@@ -383,6 +375,7 @@ input[type=checkbox] {
   border-left: 1px solid var(--border);
   overflow-y: auto;
   grid-row: 2/4;
+  position: relative;
 }
 
 #statusBig {
@@ -699,3 +692,43 @@ input[type=checkbox] {
     display: none;
   }
 }
+
+.resizer-v,
+.resizer-h {
+  position: absolute;
+  z-index: 50;
+  transition: background 0.2s;
+}
+
+.resizer-v:hover,
+.resizer-h:hover {
+  background: var(--text);
+  opacity: 0.3;
+}
+
+.resizer-v {
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+}
+
+.resizer-h {
+  left: 0;
+  right: 0;
+  height: 8px;
+  cursor: row-resize;
+}
+
+/* Position the handles exactly over the borders */
+#drag-left {
+  right: -4px;
+}
+
+#drag-right {
+  left: -4px;
+}
+
+#drag-plots {
+  top: -4px;
+}
