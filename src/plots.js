@@ -7,7 +7,7 @@ function drawPlot(id, data, label, unit, color, ymin, ymax, spV) {
   var ctx = c.getContext('2d');
   ctx.fillStyle = '#eceae4'; ctx.fillRect(0, 0, W, H);
   var mid = (ymax + ymin) / 2, range = ymax - ymin;
-  var toY = function(v) { return H * 0.85 - clamp((v - mid) / range, -0.45, 0.45) * H * 0.9; };
+  var toY = function (v) { return (H / 2) - clamp((v - mid) / range, -0.45, 0.45) * H * 0.9; };
   ctx.strokeStyle = '#d0cdc6'; ctx.lineWidth = 0.8;
   ctx.beginPath(); ctx.moveTo(0, toY(0)); ctx.lineTo(W, toY(0)); ctx.stroke();
   if (spV !== undefined) {
