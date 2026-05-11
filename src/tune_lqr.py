@@ -27,7 +27,7 @@ B = np.array([
 # 3. Define your LQR "Budget" (Costs)
 # Q Matrix: Penalize errors in [theta, omega, x, v]
 # We care A LOT about angle (100) and position (10), less about velocities
-Q = np.diag([100, 1, 10, 1]) 
+Q = np.diag([10000, 1, 500000, 1]) 
 
 # R Matrix: Penalize motor effort
 # Lower number means the motor is allowed to work harder

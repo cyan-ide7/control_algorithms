@@ -162,6 +162,21 @@ function animate(now) {
   bobMat.emissive.setHex(hasFallen ? 0x500000 : danger ? 0x300000 : 0x100000);
   bobMat.emissiveIntensity = hasFallen ? 0.55 : danger ? 0.2 : 0.07;
 
+  if (distOn) {
+    var windForce = (Math.sin(simT * 1.9 + 1.1) * 0.55 + Math.cos(simT * 3.1) * 0.35) * distStr;
+    windGrp.visible = true;
+    for (var i = 0; i < windLines.length; i++) {
+      var wl = windLines[i];
+      wl.position.x += windForce * wl.userData.speedOffset * wall * 0.6;
+      if (wl.position.x > 4) wl.position.x -= 8;
+      if (wl.position.x < -4) wl.position.x += 8;
+      wl.material.opacity = Math.min(0.6, Math.abs(windForce) * 0.15);
+      wl.scale.x = Math.sign(windForce) || 1;
+    }
+  } else {
+    windGrp.visible = false;
+  }
+
   updateCam();
   renderer.render(scene, cam);
 

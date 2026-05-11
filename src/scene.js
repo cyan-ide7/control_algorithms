@@ -136,4 +136,18 @@ manualMarker.rotation.x = Math.PI / 2;
 manualMarker.position.y = 0.04;
 scene.add(manualMarker);
 
+// Wind visualization
+var windGrp = new THREE.Group();
+scene.add(windGrp);
+var windLines = [];
+var windMat = new THREE.LineBasicMaterial({ color: 0x8ba4b5, transparent: true, opacity: 0 });
+for (var i = 0; i < 30; i++) {
+  var wgeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0, 0, 0), new THREE.Vector3(0.4, 0, 0)]);
+  var wline = new THREE.Line(wgeo, windMat.clone());
+  wline.position.set((Math.random() - 0.5) * 8, Math.random() * 2 + 0.2, (Math.random() - 0.5) * 4);
+  wline.userData = { speedOffset: Math.random() * 0.8 + 0.5 };
+  windGrp.add(wline);
+  windLines.push(wline);
+}
+
 // ─────────────────────────────────────────────

@@ -48,17 +48,31 @@ var CTRLS = {
     }
   },
   LQR: {
-    label: 'LQR', hex: '#1a4f7a',
-    info: 'Linear-Quadratic Regulator via Riccati equation. Each slider is literally a K-matrix entry. Q penalises state error, R penalises control effort.',
+    label: 'LQI (Optimal + Integral)', hex: '#1a4f7a',
+    info: 'Linear-Quadratic-Integral. Uses LQR for optimal dynamic balance, plus an Integral term to completely eliminate steady-state drift.',
     params: [
-      { id: 'k1', l: 'K1 (theta)', min: -100, max: 100, s: 0.1, v: -27.66 },
-      { id: 'k2', l: 'K2 (omega)', min: -50, max: 50, s: 0.1, v: -4.59 },
-      { id: 'k3', l: 'K3 (x)', min: -20, max: 20, s: 0.1, v: 3.16 },
-      { id: 'k4', l: 'K4 (xdot)', min: -20, max: 20, s: 0.1, v: 3.80 }
+      { id: 'k1', l: 'K1 (theta)', min: -150, max: 150, s: 0.1, v: -49.72 },
+      { id: 'k2', l: 'K2 (omega)', min: -50, max: 50, s: 0.1, v: -8.75 },
+      { id: 'k3', l: 'K3 (x)', min: -20, max: 20, s: 0.1, v: 22.36 },
+      { id: 'k4', l: 'K4 (xdot)', min: -20, max: 20, s: 0.1, v: 14.02 },
+      { id: 'ki', l: 'Ki (drift)', min: 0, max: 10, s: 0.1, v: 2.0 }
     ],
     make: function (p, sp) {
+      var ix = 0; // Integral accumulator
       return function (s, dt) {
-        return clamp(p.k1 * s.th + p.k2 * s.om - p.k3 * (s.x - sp) - p.k4 * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+
+        // Accumulate position error over time
+        ix = clamp(ix + (s.x - sp) * dt, -5, 5);
+
+        // Optimal LQR Force minus the Integral correction
+        var u = p.k1 * s.th + p.k2 * s.om - p.k3 * (s.x - sp) - p.k4 * s.v - p.ki * ix;
+
+        // Stiction feed-forward (keeps the cart from getting stuck)
+        if (Math.abs(u) > 0.001 && simGaps.stiction > 0) {
+          u += Math.sign(u) * simGaps.stiction;
+        }
+
+        return clamp(u, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
       };
     }
   },
