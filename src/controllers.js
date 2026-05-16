@@ -48,7 +48,7 @@ var CTRLS = {
     }
   },
   LQR: {
-    label: 'LQI (Optimal + Integral)', hex: '#1a4f7a',
+    label: 'LQI', hex: '#1a4f7a',
     info: 'Linear-Quadratic-Integral. Uses LQR for optimal dynamic balance, plus an Integral term to completely eliminate steady-state drift.',
     params: [
       { id: 'k1', l: 'K1 (theta)', min: -800, max: 150, s: 0.1, v: -489.25 },
@@ -118,14 +118,9 @@ var CTRLS = {
     params: [{ id: 'gam', l: 'gamma (adapt)', min: 0.05, max: 2, s: 0.05, v: 0.3 }, { id: 'k0', l: 'k0 (init)', min: 20, max: 100, s: 1, v: 60 }],
     make: function (p, sp) { var kth = p.k0; return function (s, dt) { kth = clamp(kth + p.gam * 0.5 * s.th * s.th * Math.sign(s.th) * dt, 30, 120); return clamp(kth * s.th + K0[1] * s.om - K0[2] * (s.x - sp) - K0[3] * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
   },
-  FBL: {
-    label: 'Feedback Lin.', hex: '#5b3a8a',
-    info: 'Cancels g*sin(theta) gravity term via feedforward, converting nonlinear plant to a linear integrator chain. Then applies standard linear state feedback.',
-    params: [{ id: 'kpf', l: 'kp (angle)', min: 20, max: 120, s: 1, v: 60 }, { id: 'kdf', l: 'kd (rate)', min: 5, max: 35, s: 0.5, v: 16 }, { id: 'Kxf', l: 'Kx (cart)', min: 0, max: 15, s: 0.5, v: 5 }],
-    make: function (p, sp) { return function (s, dt) { var Fg = Mt * GG * Math.sin(s.th) / Lp * 0.055; return clamp(p.kpf * s.th + p.kdf * s.om - p.Kxf * (s.x - sp) - K0[3] * s.v + Fg, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
-  },
+
   Fuzzy: {
-    label: 'Fuzzy Logic', hex: '#c0392b',
+    label: 'schecule gain', hex: '#c0392b',
     info: 'Gain-scheduling via fuzzy membership functions on |theta|. Small angles use lower gains, larger angles use higher gains. No explicit model required.',
     params: [{ id: 'fs', l: 'Scale', min: 0.5, max: 2, s: 0.05, v: 1 }, { id: 'fKx', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }, { id: 'fKv', l: 'Kv (vel)', min: 2, max: 20, s: 0.5, v: 8 }],
     make: function (p, sp) { return function (s, dt) { var a = Math.abs(s.th); var Kp = a < 0.05 ? 60 : a < 0.12 ? 63 : 67; var Kd = a < 0.05 ? 16 : a < 0.12 ? 17 : 18; return clamp(p.fs * (Kp * s.th + Kd * s.om) - p.fKx * (s.x - sp) - p.fKv * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
