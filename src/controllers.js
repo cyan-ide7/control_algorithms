@@ -51,11 +51,11 @@ var CTRLS = {
     label: 'LQI (Optimal + Integral)', hex: '#1a4f7a',
     info: 'Linear-Quadratic-Integral. Uses LQR for optimal dynamic balance, plus an Integral term to completely eliminate steady-state drift.',
     params: [
-      { id: 'k1', l: 'K1 (theta)', min: -150, max: 150, s: 0.1, v: -49.72 },
-      { id: 'k2', l: 'K2 (omega)', min: -50, max: 50, s: 0.1, v: -8.75 },
-      { id: 'k3', l: 'K3 (x)', min: -20, max: 20, s: 0.1, v: 22.36 },
-      { id: 'k4', l: 'K4 (xdot)', min: -20, max: 20, s: 0.1, v: 14.02 },
-      { id: 'ki', l: 'Ki (drift)', min: 0, max: 10, s: 0.1, v: 2.0 }
+      { id: 'k1', l: 'K1 (theta)', min: -800, max: 150, s: 0.1, v: -489.25 },
+      { id: 'k2', l: 'K2 (omega)', min: -100, max: 50, s: 0.1, v: -36.10 },
+      { id: 'k3', l: 'K3 (x)', min: -100, max: 100, s: 0.1, v: -44.72 },
+      { id: 'k4', l: 'K4 (xdot)', min: -150, max: 150, s: 0.1, v: -66.47 },
+      { id: 'ki', l: 'Ki (drift)', min: 0, max: 20, s: 0.1, v: 2.0 }
     ],
     make: function (p, sp) {
       var ix = 0; // Integral accumulator
