@@ -29,20 +29,20 @@ var MATH_CONTENT = {
   lin: function() {
     var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
     return '<h2>Linearised state-space (around theta = 0)</h2>' +
-      '<p>Substituting sin(theta) approx theta, cos(theta) approx 1, theta-dot squared approx 0:</p>' +
-      '<div class="eq">d/dt [theta, omega, x, xdot]^T = A*x + B*u\n\nA approx:\n  row 1:  [ 0,       1,    0,  0   ]\n  row 2:  [ g/L,    -bp/Ip, 0,  0   ]\n  row 3:  [ 0,       0,    0,  1   ]\n  row 4:  [ -Mp*g/Mt, 0,   0, -bc/Mt]\n\nB approx: [ 0, -1/Ip, 0, 1/Mt ]^T</div>' +
+      '<p>Using the Quanser convention where positive theta means leaning to the left, and assuming small angles:</p>' +
+      '<div class="eq">d/dt [theta, omega, x, xdot]^T = A*x + B*u\n\nA matrix:\n  row 1:  [ 0,             1, 0, 0 ]\n  row 2:  [ (Mt*g)/(Mc*L), 0, 0, 0 ]\n  row 3:  [ 0,             0, 0, 1 ]\n  row 4:  [ (Mp*g)/Mc,     0, 0, 0 ]\n\nB matrix: [ 0, 1/(Mc*L), 0, 1/Mc ]^T</div>' +
       '<h2>Controllability</h2>' +
       '<p>rank[B, AB, A^2 B, A^3 B] = 4. Full rank — completely controllable. Any pole placement is achievable with one force input.</p>' +
       '<h2>Open-loop poles</h2>' +
-      '<div class="eq">Unstable:  p1 = +' + wn.toFixed(3) + '  (right half-plane — must move)\nStable:    p2 = -' + wn.toFixed(3) + '\nCart:      p3,4 near 0 and -bc/Mt = ' + (-bc / Mt).toFixed(2) + '</div>' +
+      '<div class="eq">Unstable:  p1 = +' + wn.toFixed(3) + '  (right half-plane — must move)\nStable:    p2 = -' + wn.toFixed(3) + '\nCart:      p3,4 near 0</div>' +
       '<p class="note">Target closed-loop poles: Re(p) in [-8, -2]. Too far left saturates the actuator; too close means slow recovery.</p>';
   },
   routh: function() {
     var wn = Math.sqrt(GG / Lp * Mt / (Mt - Mp + 0.001));
     var rec = recGains();
     return '<h2>Minimum stable gains (Routh-Hurwitz)</h2>' +
-      '<p>For F = Kp*theta + Kd*omega + Kx*x + Kv*xdot the closed-loop characteristic polynomial is 4th order. Necessary conditions:</p>' +
-      '<div class="eq">Kp > Mt*g  =  ' + (Mt * GG).toFixed(1) + '  N/rad   (minimum angle gain)\nKd > 0             (any positive damping stabilises)\nKx, Kv > 0         (needed for cart regulation)\n\nFor current Mp = ' + Mp.toFixed(3) + ' kg:\n  Kp_min  = ' + Math.ceil(Mt * GG) + '\n  Kp_rec  = ' + rec.Kp + '\n  Kd_rec  = ' + rec.Kd + '</div>' +
+      '<p>For the control law F = -K1*theta - K2*omega - K3*x - K4*xdot, stabilizing the Quanser system requires specific gain signs:</p>' +
+      '<div class="eq">K1 < -Mt*g  =  ' + (-Mt * GG).toFixed(1) + '  N/rad   (minimum angle gain)\nK2 < 0             (angle damping)\nK3 < 0             (position push-out)\nK4 < 0             (velocity damping)\n\nWait, K3 must be negative? Yes! Non-minimum phase:\nTo move the cart left, you must first push it RIGHT\nto cause the pendulum to lean left.</div>' +
       '<h2>Why gains scale with mass</h2>' +
       '<p>Gravity torque = Mp*g*L*sin(theta). Heavier bob creates more torque. The required restoring force scales directly with Total Mass (Mt * g).</p>';
   },
@@ -52,12 +52,12 @@ var MATH_CONTENT = {
       '<div class="eq">J = integral_0^inf ( x^T Q x + u^T R u ) dt\n\nSolution: Algebraic Riccati equation\n  A^T P + P A - P B R^-1 B^T P + Q = 0\nGain:  K = R^-1 B^T P  =>  u = -K x</div>' +
       '<h2>Tuning the Q/R matrices</h2>' +
       '<table><tr><th>Increase</th><th>Effect on closed-loop</th></tr>' +
-      '<tr><td>Q(1,1) — K1</td><td>Faster angle correction, more force used</td></tr>' +
-      '<tr><td>Q(2,2) — K2</td><td>More damping, less overshoot</td></tr>' +
-      '<tr><td>Q(3,3) — K3</td><td>Tighter cart position hold</td></tr>' +
-      '<tr><td>R (larger)</td><td>Softer force, poles closer to origin</td></tr></table>' +
+      '<tr><td>Q(1,1) — Theta</td><td>Faster angle correction, strongly resists falling</td></tr>' +
+      '<tr><td>Q(2,2) — Omega</td><td>More angle damping, less swinging overshoot</td></tr>' +
+      '<tr><td>Q(3,3) — X</td><td>Tighter cart position hold (causes drifting if too high)</td></tr>' +
+      '<tr><td>R (decrease)</td><td>Allows motor to work harder for aggressive correction</td></tr></table>' +
       '<h2>Key insight</h2>' +
-      '<p>The LQR sliders in this simulator ARE the K matrix entries. Increase K1 until oscillation damps, then increase K2 to reduce ringing. K3 and K4 trade off cart regulation.</p>';
+      '<p>A PID-like balance prioritizes Angle over Position. In our tune_lqr.py, we heavily penalize Theta (10000) but lightly penalize X (100) with a low R (0.05) to allow massive motor forces.</p>';
   },
   lyap: function() {
     return '<h2>Lyapunov stability (Sliding Mode)</h2>' +
