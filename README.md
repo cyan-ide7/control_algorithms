@@ -58,7 +58,6 @@ physics.js → state.js → controllers.js → scene.js
             loop.js ← plots.js ← ui.js ← events.js
 ```
 
-> **Rule of thumb:** every file reads globals defined by the files loaded before it. Avoid adding cross-file circular dependencies.
 
 ---
 
