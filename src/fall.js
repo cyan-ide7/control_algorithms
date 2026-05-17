@@ -4,7 +4,14 @@ function checkFall() {
   if (hasFallen) return;
   var deg = Math.abs(S.th) * 180 / Math.PI;
   var bobY = 0.08 + Lp * 2 * Math.cos(S.th);
-  if (deg > 72 || bobY <= bobRadius + 0.005) {
+  var fallCondition = deg > 72 || bobY <= bobRadius + 0.005;
+  
+  if (isDoubleMode) {
+    var bobY2 = 0.08 + Lp * 2 * Math.cos(S.th) + Lp2 * 2 * Math.cos(S.th2);
+    fallCondition = deg > 72 || bobY <= bobRadius + 0.005 || bobY2 <= bobRadius + 0.005;
+  }
+  
+  if (fallCondition) {
     hasFallen = true;
     var rec = recGains();
     var ctrl = CTRLS[curCtrl];
@@ -23,7 +30,8 @@ function checkFall() {
       '<div><span class="fl">Kd (rate):  </span><span class="fg">' + rec.Kd + '</span></div>' +
       '<div><span class="fl">Ki (integ): </span><span class="fg">' + rec.Ki + '</span></div>' +
       '<div><span class="fl">Kx (cart):  </span><span class="fg">' + rec.Kx + '</span></div>';
-    document.getElementById('failOverlay').style.display = 'flex';
+    // Removed failOverlay display as requested
+    // document.getElementById('failOverlay').style.display = 'flex';
     floorMat.color.setHex(0xd8c8c0);
   }
 }

@@ -76,55 +76,78 @@ var CTRLS = {
       };
     }
   },
-  SMC: {
-    label: 'SMC', hex: '#8a1a5a',
-    info: 'Sliding Mode Control. Drives state onto surface sigma=omega+lambda*theta, then slides to origin. tanh replaces sign() to reduce chattering. Very robust to disturbances.',
-    params: [{ id: 'lam', l: 'lambda (slope)', min: 1, max: 20, s: 0.5, v: 8 }, { id: 'eta', l: 'eta (switch)', min: 1, max: 20, s: 0.5, v: 6 }, { id: 'phi', l: 'phi (smooth)', min: 0.01, max: 0.4, s: 0.01, v: 0.1 }],
-    make: function (p, sp) { var ix = 0; return function (s, dt) { ix = clamp(ix + (s.x - sp) * dt, -2, 2); var b = K0[0] * s.th + K0[1] * s.om - K0[2] * (s.x - sp) - K0[3] * s.v - 0.5 * ix; return clamp(b + p.eta * Math.tanh((s.om + p.lam * s.th) / p.phi), -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
-  },
-  Backstepping: {
-    label: 'Backstepping', hex: '#8a6a00',
-    info: 'Recursive Lyapunov design. Step 1: virtual omega*(theta) stabilises angle. Step 2: real force makes omega track virtual setpoint. Each step carries a Lyapunov certificate.',
-    params: [{ id: 'c1', l: 'c1 (outer)', min: 1, max: 15, s: 0.5, v: 8 }, { id: 'c2', l: 'c2 (inner)', min: 5, max: 40, s: 1, v: 20 }, { id: 'Kxb', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }],
-    make: function (p, sp) { return function (s, dt) { var ad = -p.c1 * s.th + 0.12 * (s.x - sp); var e2 = s.om - ad; return clamp((p.c2 * e2 + s.th + p.c1 * s.om) * 0.38 - p.Kxb * (s.x - sp) - K0[3] * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
-  },
+
+
   MPC: {
     label: 'MPC', hex: '#b85c00',
-    info: 'Receding horizon optimisation. Simulates N steps ahead for candidate forces, picks lowest cost J = sum(Q*theta^2 + Qx*x^2 + R*u^2). Increase N for more prediction.',
-    params: [{ id: 'N', l: 'N (horizon)', min: 3, max: 20, s: 1, v: 10 }, { id: 'Qth', l: 'Q (angle)', min: 50, max: 200, s: 5, v: 100 }, { id: 'Qx', l: 'Q (cart)', min: 0, max: 30, s: 1, v: 8 }],
+    info: 'Receding horizon optimisation. Simulates N steps ahead for candidate forces, picks lowest cost. Double Pendulum mode uses a 2-phase sequence search for complex maneuvering.',
+    params: [
+      { id: 'N', l: 'N (horizon)', min: 4, max: 24, s: 2, v: 14 },
+      { id: 'Qth', l: 'Q (angle 1)', min: 10, max: 500, s: 5, v: 120 },
+      { id: 'Qth2', l: 'Q (angle 2)', min: 10, max: 1000, s: 5, v: 450 },
+      { id: 'Qx', l: 'Q (cart)', min: 0, max: 100, s: 1, v: 40 }
+    ],
     make: function (p, sp) {
-      var lF = 0;
       return function (s, dt) {
-        var nom = clamp(K0[0] * s.th + K0[1] * s.om - K0[2] * (s.x - sp) - K0[3] * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
-        var ds = [-6, -2, -0.5, 0, 0.5, 2, 6];
-        var bF = nom, bC = 1e12;
-        for (var di = 0; di < ds.length; di++) {
-          var F = clamp(nom + ds[di], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
-          var ss = { th: s.th, om: s.om, x: s.x, v: s.v }; var c = 0;
-          for (var n = 0; n < Math.round(p.N); n++) {
-            ss = rk4(ss, F, 0.025);
-            c += p.Qth * ss.th * ss.th + 2 * ss.om * ss.om + p.Qx * (ss.x - sp) * (ss.x - sp) + 2 * ss.v * ss.v;
-            if (Math.abs(ss.th) > 0.85) { c += 1e7; break; }
+        if (!isDoubleMode) {
+          var nom = clamp(K0[0] * s.th + K0[1] * s.om - K0[2] * (s.x - sp) - K0[3] * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+          var ds = [-10, -6, -2, -0.5, 0, 0.5, 2, 6, 10];
+          var bF = nom, bC = 1e12;
+          for (var di = 0; di < ds.length; di++) {
+            var F = clamp(nom + ds[di], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+            var ss = { th: s.th, om: s.om, x: s.x, v: s.v }; var c = 0;
+            for (var n = 0; n < Math.round(p.N); n++) {
+              ss = rk4(ss, F, 0.025);
+              c += p.Qth * ss.th * ss.th + 2 * ss.om * ss.om + p.Qx * (ss.x - sp) * (ss.x - sp) + 2 * ss.v * ss.v;
+              if (Math.abs(ss.th) > 0.85) { c += 1e7; break; }
+            }
+            if (c < bC) { bC = c; bF = F; }
           }
-          if (c < bC) { bC = c; bF = F; }
+          return bF;
+        } else {
+          // Double pendulum 2-phase sequence search with LQR baseline
+          // Optimal LQR gains highly tuned for STRICT cart position tracking:
+          var nom = clamp(-44.72 * (s.x - sp) - 275.53 * s.th + 696.46 * s.th2 - 70.04 * s.v + 50.85 * s.om + 117.51 * s.om2, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+          var ds = [-40, -15, -5, 0, 5, 15, 40]; 
+          var bF = nom, bC = 1e12;
+          var steps1 = Math.floor(p.N / 2);
+          var steps2 = Math.round(p.N) - steps1;
+          var predDt = 0.025; 
+
+          for (var i = 0; i < ds.length; i++) {
+            for (var j = 0; j < ds.length; j++) {
+              var F1 = clamp(nom + ds[i], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+              var F2 = clamp(nom + ds[j], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
+              var ss = { th: s.th, om: s.om, x: s.x, v: s.v, th2: s.th2, om2: s.om2 }; 
+              var c = 0;
+              for (var n = 0; n < steps1; n++) {
+                ss = rk4(ss, F1, predDt);
+                c += p.Qth * ss.th * ss.th + 2 * ss.om * ss.om
+                  + p.Qth2 * ss.th2 * ss.th2 + 4 * ss.om2 * ss.om2
+                  + p.Qx * (ss.x - sp) * (ss.x - sp) + 2 * ss.v * ss.v;
+                if (Math.abs(ss.th) > 0.9 || Math.abs(ss.th2) > 0.9) { c += 1e7; break; }
+              }
+              if (c < 1e6) {
+                for (var n = 0; n < steps2; n++) {
+                  ss = rk4(ss, F2, predDt);
+                  c += p.Qth * ss.th * ss.th + 2 * ss.om * ss.om
+                    + p.Qth2 * ss.th2 * ss.th2 + 4 * ss.om2 * ss.om2
+                    + p.Qx * (ss.x - sp) * (ss.x - sp) + 2 * ss.v * ss.v;
+                  if (Math.abs(ss.th) > 0.9 || Math.abs(ss.th2) > 0.9) { c += 1e7; break; }
+                }
+              }
+              c += 15 * (p.Qth * ss.th * ss.th + p.Qth2 * ss.th2 * ss.th2 + p.Qx * (ss.x - sp) * (ss.x - sp)); // terminal cost constraint
+              if (c < bC) { bC = c; bF = F1; } // We only apply the first optimal action
+            }
+          }
+          return bF;
         }
-        lF = bF; return bF;
       };
     }
   },
-  MRAC: {
-    label: 'MRAC', hex: '#1a6b6b',
-    info: 'Adaptive control: gain k-hat updates online via MIT rule. Converges to stable value automatically. Watch the state panel as k-hat adapts after mass changes.',
-    params: [{ id: 'gam', l: 'gamma (adapt)', min: 0.05, max: 2, s: 0.05, v: 0.3 }, { id: 'k0', l: 'k0 (init)', min: 20, max: 100, s: 1, v: 60 }],
-    make: function (p, sp) { var kth = p.k0; return function (s, dt) { kth = clamp(kth + p.gam * 0.5 * s.th * s.th * Math.sign(s.th) * dt, 30, 120); return clamp(kth * s.th + K0[1] * s.om - K0[2] * (s.x - sp) - K0[3] * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
-  },
 
-  Fuzzy: {
-    label: 'schecule gain', hex: '#c0392b',
-    info: 'Gain-scheduling via fuzzy membership functions on |theta|. Small angles use lower gains, larger angles use higher gains. No explicit model required.',
-    params: [{ id: 'fs', l: 'Scale', min: 0.5, max: 2, s: 0.05, v: 1 }, { id: 'fKx', l: 'Kx (cart)', min: 0, max: 12, s: 0.5, v: 5 }, { id: 'fKv', l: 'Kv (vel)', min: 2, max: 20, s: 0.5, v: 8 }],
-    make: function (p, sp) { return function (s, dt) { var a = Math.abs(s.th); var Kp = a < 0.05 ? 60 : a < 0.12 ? 63 : 67; var Kd = a < 0.05 ? 16 : a < 0.12 ? 17 : 18; return clamp(p.fs * (Kp * s.th + Kd * s.om) - p.fKx * (s.x - sp) - p.fKv * s.v, -MAX_CTRL_FORCE, MAX_CTRL_FORCE); }; }
-  },
+
+
   Manual: {
     label: 'Manual (Mouse)', hex: '#e67e22',
     info: 'Control the cart directly with your mouse. Move your cursor over the track to shift the cart. You must balance the pendulum yourself!',

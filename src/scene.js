@@ -92,6 +92,31 @@ var bobMat = new THREE.MeshPhongMaterial({ color: 0xc0392b, shininess: 80, emiss
 var bob = new THREE.Mesh(new THREE.SphereGeometry(bobRadius, 14, 14), bobMat);
 bob.position.y = Lp * 2; bob.castShadow = true; pendGrp.add(bob);
 
+// Pendulum 2 group
+var pendGrp2 = new THREE.Group();
+pendGrp2.position.set(0, Lp * 2, 0);
+pendGrp.add(pendGrp2);
+
+var rod2 = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.006, 0.006, Lp2 * 2, 10),
+  new THREE.MeshPhongMaterial({ color: 0x888480, shininess: 40 })
+);
+rod2.position.y = Lp2; rod2.castShadow = true; pendGrp2.add(rod2);
+
+var pivotMesh2 = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.01, 0.01, 0.05, 12),
+  new THREE.MeshPhongMaterial({ color: 0x9a9690, shininess: 80 })
+);
+pivotMesh2.rotation.x = Math.PI / 2;
+pivotMesh2.position.set(0, 0, 0);
+pivotMesh2.castShadow = true;
+pendGrp2.add(pivotMesh2);
+
+var bob2Mat = new THREE.MeshPhongMaterial({ color: 0x2980b9, shininess: 80, emissive: 0x001020, emissiveIntensity: 0.1 });
+var bob2 = new THREE.Mesh(new THREE.SphereGeometry(bobRadius, 14, 14), bob2Mat);
+bob2.position.y = Lp2 * 2; bob2.castShadow = true; pendGrp2.add(bob2);
+pendGrp2.visible = false;
+
 // Force arrow
 var arrMat = new THREE.MeshLambertMaterial({ color: 0xb85c00, transparent: true, opacity: 0.85 });
 var arrShaft = new THREE.Mesh(new THREE.BoxGeometry(1, 0.012, 0.012), arrMat);

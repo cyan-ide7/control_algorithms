@@ -1,6 +1,10 @@
 // EVENTS
 // ─────────────────────────────────────────────
 document.getElementById('dChk').addEventListener('change', function(e) { distOn = e.target.checked; });
+document.getElementById('doubleModeChk').addEventListener('change', function(e) {
+  isDoubleMode = e.target.checked;
+  resetSim();
+});
 document.getElementById('dStr').addEventListener('input', function(e) {
   distStr = parseFloat(e.target.value);
   document.getElementById('dStrV').textContent = distStr.toFixed(1) + ' N';

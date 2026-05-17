@@ -43,12 +43,16 @@ function recordSimulationHistory(F) {
   hist.om.push(S.om * 180 / Math.PI);
   hist.x.push(S.x);
   hist.F.push(F);
+  hist.th2.push(S.th2 * 180 / Math.PI);
+  hist.om2.push(S.om2 * 180 / Math.PI);
   phaseHist.push([S.th, S.om]);
   if (hist.th.length > HIST) {
     hist.th.shift();
     hist.om.shift();
     hist.x.shift();
     hist.F.shift();
+    hist.th2.shift();
+    hist.om2.shift();
   }
   if (phaseHist.length > HIST) phaseHist.shift();
 }
@@ -69,26 +73,63 @@ function stepFallenSimulation() {
   S = rk4(S, 0, DT);
   var rodLength = Lp * 2;
   var pivotY = 0.08;
-  var bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
   var groundY = bobRadius + 0.002;
-  if (bobPos.y < groundY) {
-    var thLim = Math.acos(clamp((groundY - pivotY) / rodLength, -1, 1));
-    if (Math.abs(S.th) > thLim) {
-      S.th = Math.sign(S.th) * thLim;
-      bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
-
-      var bobVy = -rodLength * Math.sin(S.th) * S.om;
-      var bobVx = S.v - rodLength * Math.cos(S.th) * S.om;
-      if (bobVy < 0) {
-        var oldOm = S.om;
-        var oldBobVx = bobVx;
+  
+  if (isDoubleMode) {
+    var bob1Y = pivotY + rodLength * Math.cos(S.th);
+    var bob2Y = bob1Y + (Lp2 * 2) * Math.cos(S.th2);
+    
+    // Joint 1 hits the floor
+    if (bob1Y < groundY) {
+      var thLim1 = Math.acos(clamp((groundY - pivotY) / rodLength, -1, 1));
+      if (Math.abs(S.th) > thLim1) {
+        S.th = Math.sign(S.th) * thLim1;
         S.om *= -0.32;
-        S.v += (oldOm - S.om) * rodLength * Math.cos(S.th) * (Mp / Mt) * 0.22;
-        S.v += (oldBobVx - bobVx) * 0.04;
-        if (Math.abs(oldOm) > 0.8) impactPulse = 1.0;
+        S.v *= 0.992;
+        bob1Y = pivotY + rodLength * Math.cos(S.th);
+        bob2Y = bob1Y + (Lp2 * 2) * Math.cos(S.th2);
       }
-      S.v *= 0.992;
-      S.om *= 0.985;
+    }
+    
+    // Bob 2 hits the floor
+    if (bob2Y < groundY) {
+      var diffY = groundY - bob1Y;
+      var thLim2 = Math.acos(clamp(diffY / (Lp2 * 2), -1, 1));
+      if (Math.abs(S.th2) > thLim2) {
+        S.th2 = Math.sign(S.th2) * thLim2;
+        var bob2Vy = -rodLength * Math.sin(S.th) * S.om - (Lp2 * 2) * Math.sin(S.th2) * S.om2;
+        if (bob2Vy < 0) {
+          S.om2 *= -0.32;
+          S.om *= 0.8;
+          S.v *= 0.992;
+          if (Math.abs(S.om2) > 0.8) impactPulse = 1.0;
+        }
+        S.v *= 0.992;
+        S.om *= 0.985;
+        S.om2 *= 0.985;
+      }
+    }
+  } else {
+    var bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
+    if (bobPos.y < groundY) {
+      var thLim = Math.acos(clamp((groundY - pivotY) / rodLength, -1, 1));
+      if (Math.abs(S.th) > thLim) {
+        S.th = Math.sign(S.th) * thLim;
+        bobPos = pendulumCartesian(S, S.x, pivotY, rodLength);
+
+        var bobVy = -rodLength * Math.sin(S.th) * S.om;
+        var bobVx = S.v - rodLength * Math.cos(S.th) * S.om;
+        if (bobVy < 0) {
+          var oldOm = S.om;
+          var oldBobVx = bobVx;
+          S.om *= -0.32;
+          S.v += (oldOm - S.om) * rodLength * Math.cos(S.th) * (Mp / Mt) * 0.22;
+          S.v += (oldBobVx - bobVx) * 0.04;
+          if (Math.abs(oldOm) > 0.8) impactPulse = 1.0;
+        }
+        S.v *= 0.992;
+        S.om *= 0.985;
+      }
     }
   }
   simT += DT;
@@ -120,6 +161,17 @@ function animate(now) {
 
   cartGrp.position.x = S.x;
   pendGrp.rotation.z = S.th;
+  
+  if (typeof pendGrp2 !== 'undefined') {
+    if (isDoubleMode) {
+      pendGrp2.visible = true;
+      pendGrp2.rotation.z = S.th2 - S.th;
+      bob.visible = false;
+    } else {
+      pendGrp2.visible = false;
+      bob.visible = true;
+    }
+  }
 
   if (curCtrl === 'Manual') {
     manualMarker.position.x = manualX;
@@ -140,7 +192,11 @@ function animate(now) {
   }
 
   var bobWP = new THREE.Vector3();
-  bob.getWorldPosition(bobWP);
+  if (isDoubleMode && typeof bob2 !== 'undefined') {
+    bob2.getWorldPosition(bobWP);
+  } else {
+    bob.getWorldPosition(bobWP);
+  }
   trailPts[tIdx % TLEN].copy(bobWP);
   tIdx++;
   var tord = [];
@@ -161,6 +217,12 @@ function animate(now) {
   bobMat.color.setHex(danger ? 0xc0392b : 0xd04040);
   bobMat.emissive.setHex(hasFallen ? 0x500000 : danger ? 0x300000 : 0x100000);
   bobMat.emissiveIntensity = hasFallen ? 0.55 : danger ? 0.2 : 0.07;
+
+  if (typeof bob2Mat !== 'undefined') {
+    bob2Mat.color.copy(bobMat.color);
+    bob2Mat.emissive.copy(bobMat.emissive);
+    bob2Mat.emissiveIntensity = bobMat.emissiveIntensity;
+  }
 
   if (distOn) {
     var windForce = (Math.sin(simT * 1.9 + 1.1) * 0.55 + Math.cos(simT * 3.1) * 0.35) * distStr;

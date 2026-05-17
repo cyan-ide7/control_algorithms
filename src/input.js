@@ -20,12 +20,18 @@ window.addEventListener('mouseup', function(e) {
     mouse2.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
     mouse2.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     ray.setFromCamera(mouse2, cam);
-    var hits = ray.intersectObject(bob, false);
+    var targetBob = typeof isDoubleMode !== 'undefined' && isDoubleMode ? bob2 : bob;
+    var hits = ray.intersectObject(targetBob, false);
     if (hits.length > 0) {
       var ang = Math.random() * Math.PI * 2;
-      S.om += (distStr * 0.8) / Math.max(0.01, Ip) / Lp * 0.03;
+      if (typeof isDoubleMode !== 'undefined' && isDoubleMode) {
+        S.om2 += (distStr * 0.8) / Math.max(0.01, Ip2) / Lp2 * 0.03;
+      } else {
+        S.om += (distStr * 0.8) / Math.max(0.01, Ip) / Lp * 0.03;
+      }
       bobPushF = Math.cos(ang) * distStr * 0.4;
-      var bwp = new THREE.Vector3(); bob.getWorldPosition(bwp);
+      var bwp = new THREE.Vector3(); 
+      targetBob.getWorldPosition(bwp);
       pushIndicator.position.copy(bwp);
       pushIndicator.material.opacity = 0.85;
       pushTimer = 0.5;
