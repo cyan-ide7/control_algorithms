@@ -46,3 +46,198 @@ Each controller in this simulation reads the current physical state vector at 50
   - For the **Double Pendulum**, it uses a mathematically optimal LQR baseline force, and performs a 2-Phase Sequence Search. It splits the prediction horizon in half and simulates $7 \times 7 = 49$ branching trajectories of varying forces. This allows it to discover complex maneuvers (like kicking the cart left to swing the top pole right).
 - **Output:** The first optimal force $F$ from the selected sequence.
 
+---
+
+## 3. Contributing — Codebase Overview
+
+The simulation is split into focused modules that are loaded in order by `index.html`. The dependency chain is:
+
+```
+physics.js → state.js → controllers.js → scene.js
+          ↘                                        ↘
+            loop.js ← plots.js ← ui.js ← events.js
+```
+
+> **Rule of thumb:** every file reads globals defined by the files loaded before it. Avoid adding cross-file circular dependencies.
+
+---
+
+### `src/physics.js`
+**Role:** Lagrangian dynamics engine — the single source of truth for how the pendulum moves.
+
+| Symbol | Meaning |
+|--------|---------|
+| `GG, Mc, Mp, Lp, bp, bc` | Physical constants (gravity, masses, lengths, damping) |
+| `simGaps` | Imperfection flags read by the physics layer (back-EMF, stiction, wiring torque) |
+| `rephy()` | Recomputes derived quantities (`Mt`, `Ip`, `Ip2`) whenever a mass changes |
+| `phyDeriv(s, F)` | Returns $[\dot\theta, \dot\omega, \dot x, \dot v]$ for the **single** pendulum using the Lagrangian mass-matrix inversion |
+| `phyDerivDouble(s, F)` | Same but for the **double** pendulum with a 3×3 mass matrix; handles floor-contact decoupling |
+| `rk4(s, F, dt)` | 4th-order Runge-Kutta integrator — dispatches to the correct `phyDeriv*` variant |
+| `clamp(v, a, b)` | Global utility used everywhere |
+| `recGains()` | Heuristic that suggests safe PID gains based on the current pole length and mass |
+
+**To modify physics:** change the constants at the top or edit `phyDeriv` / `phyDerivDouble`. If you change the sign convention for $\theta$, update `scene.js` (rod rotation) and all controller error signs.
+
+---
+
+### `src/state.js`
+**Role:** Declares and owns the entire simulation state. Must be loaded after `physics.js`.
+
+Key globals defined here:
+
+| Variable | Description |
+|----------|-------------|
+| `S` | The live state vector `{th, om, x, v, th2, om2}` |
+| `curCtrl, params, sp, ctrlFn` | Active controller name, current gain values, setpoint, and compiled control function |
+| `isDoubleMode` | Toggle between single / double pendulum modes |
+| `simGaps` | Object holding all "reality gap" settings (noise, delay, stiction, etc.) |
+| `hist, phaseHist` | Rolling history arrays used by `plots.js` |
+| `hasFallen` | Flag set by `fall.js`; switches the main loop from balanced to fallen stepping |
+| `DT, HIST` | Physics timestep (5 ms) and plot history length |
+
+Key functions:
+
+- `initialStateVector()` — small random perturbation so the sim isn't trivially balanced at $t=0$.
+- `resetSim()` — full state + history reset; call this whenever the mode or controller changes.
+- `makeCtrl()` — instantiates the current controller closure from `CTRLS[curCtrl]`.
+
+---
+
+### `src/controllers.js`
+**Role:** Defines the `CTRLS` registry — a map from controller name to `{label, hex, info, params, make}`.
+
+Each entry's `make(params, sp)` is a **factory** that returns a stateful closure `(s, dt) → F`. This lets each controller maintain internal integrator state (e.g. `ix`) without polluting global scope.
+
+| Controller | Key idea |
+|------------|----------|
+| **PID** | Cascaded dual-loop: outer loop converts position error → target angle; inner PD loop drives the pole to that angle. The integral term `Ki` eliminates steady-state cart drift. |
+| **LQR** (labelled LQI) | Full-state linear feedback using pre-computed optimal gains (see `tune_lqr.py`). Adds an integral of position error for drift elimination. Includes stiction feed-forward. |
+| **MPC** | Receding-horizon search. Single mode: grid search over 9 force offsets. Double mode: 2-phase 7×7 branching search around an LQR nominal. |
+| **Manual** | Proportional spring toward the mouse cursor position (`manualX` set by `input.js`). |
+
+`K0` at the top is a hard-coded fallback LQR gain set used by MPC's single-pendulum mode.
+
+**To add a new controller:** append a new key to `CTRLS` following the same schema and it will automatically appear in the UI via `ui.js → renderCtrlBtns()`.
+
+---
+
+### `src/scene.js`
+**Role:** Builds and owns the entire Three.js 3-D scene. Must be loaded after `physics.js` (needs `Lp`, `RAIL`, `bobRadius`).
+
+Constructs (in order):
+1. **Renderer + camera** — WebGL renderer with PCF soft shadows; responsive via `ResizeObserver`.
+2. **Lights** — warm directional sun + cool fill light for depth.
+3. **Track geometry** — floor, grid, two polished rails, end-stop bumpers.
+4. **Cart + pendulums** — cart body, wheels, pivot cylinder, rod(s), and bob sphere(s). Double-pendulum group (`pendGrp2`) is built unconditionally but hidden until `isDoubleMode` is set.
+5. **Overlay meshes** — force arrow (`arrGrp`), fall disc, bob-push indicator, bob trail line (100 points), manual-mode target marker, wind-line particles (30 lines).
+
+All scene objects that need to be updated each frame are exported as globals (`cartGrp`, `pendGrp`, `pendGrp2`, `bob`, `bob2`, `bobMat`, `bob2Mat`, `floorMat`, `fallDisc`, `windGrp`, `windLines`, `pushIndicator`, `pushTimer`, `impactPulse`, `trailGeo`, `trailPts`, `tIdx`, `arrGrp`, `arrShaft`, `arrHead`, `manualMarker`).
+
+---
+
+### `src/loop.js`
+**Role:** The animation heartbeat — runs the physics, applies control, and drives all per-frame updates. Must be loaded last (after all other modules).
+
+Key functions:
+
+| Function | Description |
+|----------|-------------|
+| `computeDisturbanceForce()` | Generates a quasi-random wind force (sum of two sinusoids) plus one-shot kick/push impulses |
+| `observeStateVector(s)` | Applies simulated sensor noise and encoder quantisation to the true state before it is passed to the controller |
+| `computeControlForce(obs)` | Throttles the controller to `simGaps.hz` Hz, applies deadzone, and manages the delay FIFO buffer (`fBuffer`) |
+| `stepBalancedSimulation()` | One physics tick when upright: disturbance → observe → control → `rk4` → history → `checkFall` |
+| `stepFallenSimulation()` | One physics tick after fall: unforced `rk4` + floor-bounce collision response for single and double modes |
+| `animate(now)` | `requestAnimationFrame` callback. Runs the fixed-step physics accumulator, syncs Three.js object transforms, updates trail/wind/arrow/colours, calls `drawPlot` / `drawPhase` / `updateRight`, and prints the HUD values |
+
+---
+
+### `src/plots.js`
+**Role:** Canvas-based real-time signal plots and phase-portrait. No external dependencies beyond `clamp` and `HIST`.
+
+| Function | Plots |
+|----------|-------|
+| `drawPlot(id, data, label, unit, color, ymin, ymax, spV)` | Draws a time-series waveform on the `<canvas id="id">` element. Shows a dashed setpoint line when `spV` is supplied. |
+| `drawPhase(pts, color)` | Draws the $(\theta, \dot\theta)$ phase-plane portrait on `#pPh`. |
+
+Called every frame from `loop.js → animate()` for four signals: angle, angular velocity, cart position, and applied force.
+
+---
+
+### `src/ui.js`
+**Role:** Renders and manages the left/right HTML control panels. Reads `CTRLS` and `S` globals; writes to `curCtrl`, `params`, and `ctrlFn`.
+
+| Function | Description |
+|----------|-------------|
+| `renderCtrlBtns()` | Rebuilds the controller selector buttons with coloured dots. Switches to the selected controller and regenerates the gains panel. Intercepts "Manual" to show a countdown first. |
+| `startManualCountdown()` | 3-second countdown overlay before handing control to the mouse. |
+| `renderGains()` | Generates one slider row per parameter for the active controller. Sliders update `params` and re-instantiate the controller closure on every `input` event. |
+| `updateRight(F)` | Updates the right-panel state readout (theta, omega, x, xdot, F, mp, t), the BALANCED/UNSTABLE/FALLEN status indicator, and the three performance metrics. |
+
+---
+
+### `src/events.js`
+**Role:** Wires all HTML control elements (checkboxes, sliders, buttons) to their corresponding simulation variables. Also initialises the UI and starts the animation loop. Must be loaded after all other modules.
+
+Binds (in order):
+- Disturbance toggles and strength (`dChk`, `dStr`, `kick`)
+- Double-mode checkbox → `resetSim()`
+- Setpoint slider → re-instantiates the controller
+- Bob mass slider → updates `Mp`, calls `rephy()`, resizes the bob geometry, re-instantiates the controller
+- Math docs button → `openMath()`
+- Reality-gap sliders: sensor noise, quantisation, delay, stiction, deadzone, controller Hz, back-EMF, wiring torque
+
+Also sets up the three **drag-to-resize** handles (`drag-left`, `drag-right`, `drag-plots`) that let the user resize the control panels and plots area by dragging their borders.
+
+---
+
+### `src/input.js`
+**Role:** Mouse/touch orbit camera and interactive pendulum nudging. Must be loaded after `scene.js` (needs `cam`, `canvas3d`, `bob`, `bob2`).
+
+- **Orbit:** `mousedown` + `mousemove` updates spherical coordinates `(camPhi, camTheta, camR)`; `wheel` zooms. Touch equivalents for mobile.
+- **Click-to-nudge:** A `mouseup` that didn't drag casts a ray; if it hits the active bob, applies a random angular impulse scaled by `distStr`. Lights up the push indicator mesh.
+- **Manual control:** When `curCtrl === 'Manual'`, every `mousemove` ray-casts against the horizontal track plane (Y = 0.04 m) to update `manualX`, which `controllers.js → Manual.make` then targets.
+
+---
+
+### `src/fall.js`
+**Role:** Fall detection and recovery suggestions.
+
+| Function | Description |
+|----------|-------------|
+| `checkFall()` | Called every physics tick. Triggers if the pole exceeds 72° **or** the bob contacts the ground. Sets `hasFallen`, populates the fail-overlay HTML with the current gains and a human-readable reason, turns the floor pink, and calls `recGains()` to suggest better PID values. |
+| `applyRecommended()` | Switches the active controller to PID, injects the recommended gains from `recGains()`, and calls `resetSim()`. Wired to the "Apply Suggested Gains" button in the fail overlay. |
+
+---
+
+### `src/math-modal.js`
+**Role:** Thin shim for the (deprecated) in-browser maths modal.
+
+`openMath()` now redirects the user to this `README.md` instead of rendering equations in-page. `closeMath()` is a no-op kept for backward compatibility with any HTML that still references it.
+
+---
+
+### `src/tune_lqr.py`
+**Role:** Offline Python script that computes optimal LQR gains for the **single** inverted pendulum.
+
+Requires `numpy` and `scipy`. Linearises the system around the upright equilibrium, solves the continuous Algebraic Riccati Equation, and prints the four gains `K1–K4` ready to paste into `controllers.js`.
+
+**Usage:**
+```bash
+pip install numpy scipy
+python src/tune_lqr.py
+```
+
+Adjust the `Q` and `R` diagonal entries to trade off balancing aggressiveness against motor effort.
+
+---
+
+### `src/p.py`
+**Role:** Offline Python script that computes LQR gains for the **double** inverted pendulum.
+
+Builds the 3×3 Lagrangian mass matrix and the 6×6 linearised state-space matrices `A` and `B`, then solves the Riccati equation for a 6-state LQR. The resulting `K_lqr` vector is pasted into the MPC controller's nominal LQR baseline inside `controllers.js`.
+
+**Usage:**
+```bash
+pip install numpy scipy
+python src/p.py
+```
