@@ -79,7 +79,7 @@ var CTRLS = {
 
 
   MPC: {
-    label: 'MPC', hex: '#b85c00',
+    label: 'MPC-works only with DOUBLE PENDULUM', hex: '#b85c00',
     info: 'Receding horizon optimisation. Simulates N steps ahead for candidate forces, picks lowest cost. Double Pendulum mode uses a 2-phase sequence search for complex maneuvering.',
     params: [
       { id: 'N', l: 'N (horizon)', min: 4, max: 24, s: 2, v: 14 },
@@ -108,17 +108,17 @@ var CTRLS = {
           // Double pendulum 2-phase sequence search with LQR baseline
           // Optimal LQR gains highly tuned for STRICT cart position tracking:
           var nom = clamp(-44.72 * (s.x - sp) - 275.53 * s.th + 696.46 * s.th2 - 70.04 * s.v + 50.85 * s.om + 117.51 * s.om2, -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
-          var ds = [-40, -15, -5, 0, 5, 15, 40]; 
+          var ds = [-40, -15, -5, 0, 5, 15, 40];
           var bF = nom, bC = 1e12;
           var steps1 = Math.floor(p.N / 2);
           var steps2 = Math.round(p.N) - steps1;
-          var predDt = 0.025; 
+          var predDt = 0.025;
 
           for (var i = 0; i < ds.length; i++) {
             for (var j = 0; j < ds.length; j++) {
               var F1 = clamp(nom + ds[i], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
               var F2 = clamp(nom + ds[j], -MAX_CTRL_FORCE, MAX_CTRL_FORCE);
-              var ss = { th: s.th, om: s.om, x: s.x, v: s.v, th2: s.th2, om2: s.om2 }; 
+              var ss = { th: s.th, om: s.om, x: s.x, v: s.v, th2: s.th2, om2: s.om2 };
               var c = 0;
               for (var n = 0; n < steps1; n++) {
                 ss = rk4(ss, F1, predDt);
