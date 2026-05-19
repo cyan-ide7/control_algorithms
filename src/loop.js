@@ -150,8 +150,14 @@ function animate(now) {
   accum += wall;
   while (accum >= DT) {
     accum -= DT;
-    if (!hasFallen) stepBalancedSimulation();
-    else stepFallenSimulation();
+    // Carry mode overrides ALL physics regardless of fall state
+    if (typeof carryMode !== 'undefined' && carryMode) {
+      updateCarry();
+    } else if (!hasFallen) {
+      stepBalancedSimulation();
+    } else {
+      stepFallenSimulation();
+    }
   }
 
   if (pushTimer > 0) {
@@ -171,6 +177,11 @@ function animate(now) {
       pendGrp2.visible = false;
       bob.visible = true;
     }
+  }
+
+  // Cursor feedback for carry mode
+  if (typeof carryMode !== 'undefined') {
+    canvas3d.style.cursor = carryMode ? 'crosshair' : '';
   }
 
   if (curCtrl === 'Manual') {

@@ -19,12 +19,15 @@
         <span id="hT">t = 0.00 s</span>
         <span id="hA">theta = 0.0 deg</span>
         <span id="hF">-- fps</span>
-        <span style="color:#555;">drag / scroll / click bob</span>
+        <span style="color:#555;">drag / scroll / click bob to carry</span>
       </div>
     </header>
 
     <aside id="left">
       <div id="drag-left" class="resizer-v"></div>
+      <div class="ps">
+        <button class="btn" onclick="resetSim()">&#8635; Reset</button>
+      </div>
       <div class="ps">
         <div class="pl">Mode</div>
         <label class="ck"><input type="checkbox" id="doubleModeChk"> Double Pendulum</label>
@@ -55,14 +58,7 @@
           <input type="range" id="spSlider" min="-1.5" max="1.5" step="0.05" value="0">
         </div>
       </div>
-      <div class="ps">
-        <div class="pl">Pendulum mass</div>
-        <div class="gr">
-          <div class="gm"><span class="gn">ball mass</span><span class="gv" id="mpV">0.127 kg</span></div>
-          <input type="range" id="mpSlider" min="0.02" max="0.60" step="0.005" value="0.127">
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text3);">heavier -> slower natural freq.</div>
-      </div>
+
       <div class="ps">
         <div class="pl">Sim-to-Real Gaps</div>
         <label class="ck"><input type="checkbox" id="gQuant"> Encoder quantization</label>
@@ -79,24 +75,11 @@
           <input type="range" id="gStic" min="0" max="5" step="0.1" value="0">
         </div>
         <div class="gr">
-          <div class="gm"><span class="gn">dead-zone</span><span class="gv" id="gDeadV">0.0 N</span></div>
-          <input type="range" id="gDead" min="0" max="3" step="0.1" value="0">
-        </div>
-        <div class="gr">
           <div class="gm"><span class="gn">ctrl freq</span><span class="gv" id="gHzV">500 Hz</span></div>
           <input type="range" id="gHz" min="50" max="1000" step="50" value="500">
         </div>
-        <div class="gr">
-          <div class="gm"><span class="gn">back-EMF</span><span class="gv" id="gEmfV">0.0</span></div>
-          <input type="range" id="gEmf" min="0" max="5" step="0.1" value="0">
-        </div>
-        <div class="gr">
-          <div class="gm"><span class="gn">wiring spring</span><span class="gv" id="gWireV">0.0</span></div>
-          <input type="range" id="gWire" min="0" max="5" step="0.1" value="0">
-        </div>
       </div>
       <div class="ps">
-        <button class="btn" onclick="resetSim()">Reset</button>
         <button class="btn" id="mathBtn">Stability math</button>
       </div>
       <div class="ps" style="border-bottom:none;flex:1;">
@@ -132,7 +115,7 @@
         <div id="countText">3</div>
         <div id="countLabel">Manual control starting</div>
       </div>
-      <div id="clickHint">drag to orbit / scroll to zoom / click bob to push / select "Manual" to balance yourself</div>
+      <div id="clickHint">drag to orbit · scroll to zoom · <b>click bob to carry &amp; place</b> · select "Manual" to balance yourself</div>
     </main>
 
     <section id="plots">

@@ -80,6 +80,27 @@ body {
   color: #ccc;
 }
 
+.hdr-reset {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 9px;
+  background: transparent;
+  border: 1px solid #555;
+  border-radius: 3px;
+  color: #aaa;
+  cursor: pointer;
+  letter-spacing: .04em;
+  transition: all .12s;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.hdr-reset:hover {
+  background: #fff;
+  color: #1a1814;
+  border-color: #fff;
+}
+
 #left {
   grid-area: left;
   background: var(--bg2);
