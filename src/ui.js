@@ -77,7 +77,8 @@ function updateRight(F) {
   var col = hasFallen ? '#c0392b' : stable ? '#2a6b3c' : Math.abs(deg) < 25 ? '#b85c00' : '#c0392b';
   document.getElementById('statusBig').style.color = col;
   document.getElementById('statusBig').textContent = hasFallen ? 'FALLEN' : stable ? 'BALANCED' : 'UNSTABLE';
-  document.getElementById('dot').style.background = hasFallen ? '#c0392b' : stable ? '#4a4' : '#b85c00';
+  var dotEl = document.getElementById('dot');
+  if (dotEl) dotEl.style.background = hasFallen ? '#c0392b' : stable ? '#4a4' : '#b85c00';
   var rows = [
     ['theta', deg.toFixed(2), 'deg'],
     ['omega', (S.om * 180 / Math.PI).toFixed(1), 'deg/s'],

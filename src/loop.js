@@ -260,7 +260,10 @@ function animate(now) {
   drawPlot('pF', hist.F, 'force', 'N', '#b85c00', -(MAX_CTRL_FORCE + 2), MAX_CTRL_FORCE + 2, 0);
   drawPhase(phaseHist, cc);
   updateRight(lastF);
-  document.getElementById('hT').textContent = 't = ' + simT.toFixed(2) + ' s';
-  document.getElementById('hA').textContent = 'theta = ' + (S.th * 180 / Math.PI).toFixed(1) + 'deg';
-  document.getElementById('hF').textContent = fps + ' fps';
+  var hTEl = document.getElementById('hT');
+  if (hTEl) hTEl.textContent = 't = ' + simT.toFixed(2) + ' s';
+  var hAEl = document.getElementById('hA');
+  if (hAEl) hAEl.textContent = 'theta = ' + (S.th * 180 / Math.PI).toFixed(1) + 'deg';
+  var hFEl = document.getElementById('hF');
+  if (hFEl) hFEl.textContent = fps + ' fps';
 }
